@@ -2,5 +2,6 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/.vs
-/MCS.WebApi/obj
+/.vs/MCS.WebApi
+/MCS/.vs
+/MCS/MCS.WebApi/Properties
