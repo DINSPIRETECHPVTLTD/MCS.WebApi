@@ -1,3 +1,4 @@
+using System;
 using Microsoft.EntityFrameworkCore;
 using MCS.WebApi.Models;
 
@@ -28,6 +29,21 @@ namespace MCS.WebApi.Data
             modelBuilder.Entity<Center>().HasQueryFilter(c => !c.IsDeleted);
             modelBuilder.Entity<POC>().HasQueryFilter(p => !p.IsDeleted);
             modelBuilder.Entity<Member>().HasQueryFilter(m => !m.IsDeleted);
+
+            // Configure User enum conversions (database stores as string, C# uses enum)
+            // Role: 'Owner', 'BranchAdmin', 'Staff'
+            modelBuilder.Entity<User>()
+                .Property(u => u.Role)
+                .HasConversion(
+                    v => v.ToString(),           // Convert enum to string for database
+                    v => (UserRole)Enum.Parse(typeof(UserRole), v)); // Convert string to enum from database
+
+            // Level: 'Org', 'Branch'
+            modelBuilder.Entity<User>()
+                .Property(u => u.Level)
+                .HasConversion(
+                    v => v.ToString(),           // Convert enum to string for database
+                    v => (UserLevel)Enum.Parse(typeof(UserLevel), v)); // Convert string to enum from database
 
             // Configure User relationships
             modelBuilder.Entity<User>()
