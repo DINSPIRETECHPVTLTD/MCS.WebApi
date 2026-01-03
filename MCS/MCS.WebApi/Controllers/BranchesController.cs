@@ -24,27 +24,27 @@ namespace MCS.WebApi.Controllers
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
 
             if (userType == "Organization")
             {
-                var orgUser = await _context.OrganizationUsers.FindAsync(userId);
-                if (orgUser == null)
-                {
-                    return Forbid();
-                }
                 return await _context.Branches
-                    .Where(b => b.OrganizationId == orgUser.OrganizationId)
+                    .Where(b => b.OrgId == user.OrgId)
                     .ToListAsync();
             }
             else if (userType == "Branch")
             {
-                var branchUser = await _context.BranchUsers.FindAsync(userId);
-                if (branchUser == null)
+                if (!user.BranchId.HasValue)
                 {
                     return Forbid();
                 }
                 return await _context.Branches
-                    .Where(b => b.BranchId == branchUser.BranchId)
+                    .Where(b => b.Id == user.BranchId.Value)
                     .ToListAsync();
             }
 
@@ -57,23 +57,23 @@ namespace MCS.WebApi.Controllers
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
 
             Branch? branch = null;
 
             if (userType == "Organization")
             {
-                var orgUser = await _context.OrganizationUsers.FindAsync(userId);
-                if (orgUser == null)
-                {
-                    return Forbid();
-                }
                 branch = await _context.Branches
-                    .FirstOrDefaultAsync(b => b.BranchId == id && b.OrganizationId == orgUser.OrganizationId);
+                    .FirstOrDefaultAsync(b => b.Id == id && b.OrgId == user.OrgId);
             }
             else if (userType == "Branch")
             {
-                var branchUser = await _context.BranchUsers.FindAsync(userId);
-                if (branchUser == null || branchUser.BranchId != id)
+                if (!user.BranchId.HasValue || user.BranchId.Value != id)
                 {
                     return Forbid();
                 }
@@ -94,19 +94,20 @@ namespace MCS.WebApi.Controllers
         public async Task<ActionResult<Branch>> PostBranch(Branch branch)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var orgUser = await _context.OrganizationUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (orgUser == null || orgUser.Role != OrganizationRole.Owner)
+            if (user == null || user.Role != UserRole.Owner)
             {
                 return Forbid();
             }
 
-            branch.OrganizationId = orgUser.OrganizationId;
-            branch.CreatedDate = DateTime.UtcNow;
+            branch.OrgId = user.OrgId;
+            branch.CreatedBy = userId;
+            branch.CreatedAt = DateTime.UtcNow;
             _context.Branches.Add(branch);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetBranch", new { id = branch.BranchId }, branch);
+            return CreatedAtAction("GetBranch", new { id = branch.Id }, branch);
         }
 
         // PUT: api/Branches/5
@@ -114,28 +115,35 @@ namespace MCS.WebApi.Controllers
         [Authorize(Roles = "Owner")]
         public async Task<IActionResult> PutBranch(int id, Branch branch)
         {
-            if (id != branch.BranchId)
+            if (id != branch.Id)
             {
                 return BadRequest();
             }
 
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var orgUser = await _context.OrganizationUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (orgUser == null || orgUser.Role != OrganizationRole.Owner)
+            if (user == null || user.Role != UserRole.Owner)
             {
                 return Forbid();
             }
 
             var existingBranch = await _context.Branches.FindAsync(id);
-            if (existingBranch == null || existingBranch.OrganizationId != orgUser.OrganizationId)
+            if (existingBranch == null || existingBranch.OrgId != user.OrgId)
             {
                 return NotFound();
             }
 
             existingBranch.Name = branch.Name;
-            existingBranch.Address = branch.Address;
-            existingBranch.Phone = branch.Phone;
+            existingBranch.Address1 = branch.Address1;
+            existingBranch.Address2 = branch.Address2;
+            existingBranch.City = branch.City;
+            existingBranch.State = branch.State;
+            existingBranch.Country = branch.Country;
+            existingBranch.ZipCode = branch.ZipCode;
+            existingBranch.PhoneNumber = branch.PhoneNumber;
+            existingBranch.ModifiedBy = userId;
+            existingBranch.ModifiedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
@@ -148,20 +156,22 @@ namespace MCS.WebApi.Controllers
         public async Task<IActionResult> DeleteBranch(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var orgUser = await _context.OrganizationUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (orgUser == null || orgUser.Role != OrganizationRole.Owner)
+            if (user == null || user.Role != UserRole.Owner)
             {
                 return Forbid();
             }
 
             var branch = await _context.Branches.FindAsync(id);
-            if (branch == null || branch.OrganizationId != orgUser.OrganizationId)
+            if (branch == null || branch.OrgId != user.OrgId)
             {
                 return NotFound();
             }
 
             branch.IsDeleted = true;
+            branch.ModifiedBy = userId;
+            branch.ModifiedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             return NoContent();

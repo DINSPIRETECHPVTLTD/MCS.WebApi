@@ -6,12 +6,7 @@ namespace MCS.WebApi.Models
     public class Member
     {
         [Key]
-        public int MemberId { get; set; }
-
-        [Required]
-        public int BranchId { get; set; }
-
-        public int? CenterId { get; set; }
+        public int Id { get; set; }
 
         [Required]
         [StringLength(100)]
@@ -24,34 +19,88 @@ namespace MCS.WebApi.Models
         [StringLength(100)]
         public string LastName { get; set; } = string.Empty;
 
-        public DateTime? DOB { get; set; }
-
-        public int? Age { get; set; }
+        [Required]
+        [StringLength(20)]
+        public string PhoneNumber { get; set; } = string.Empty;
 
         [StringLength(20)]
-        public string? Phone { get; set; }
+        public string? AltPhone { get; set; }
 
-        [StringLength(500)]
-        public string? Address { get; set; }
+        [StringLength(200)]
+        public string? Address1 { get; set; }
 
-        [StringLength(12)]
-        public string? Aadhaar { get; set; }
+        [StringLength(200)]
+        public string? Address2 { get; set; }
 
         [StringLength(100)]
-        public string? Occupation { get; set; }
+        public string? City { get; set; }
 
+        [StringLength(100)]
+        public string? State { get; set; }
+
+        [StringLength(20)]
+        public string? ZipCode { get; set; }
+
+        [StringLength(20)]
+        public string? Aadhaar { get; set; }
+
+        public DateOnly? DOB { get; set; }
+
+        [Required]
+        public int Age { get; set; }
+
+        [Required]
+        [StringLength(100)]
+        public string GuardianFirstName { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? GuardianMiddleName { get; set; }
+
+        [Required]
+        [StringLength(100)]
+        public string GuardianLastName { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(20)]
+        public string GuardianPhone { get; set; } = string.Empty;
+
+        public DateOnly? GuardianDOB { get; set; }
+
+        [Required]
+        public int GuardianAge { get; set; }
+
+        [Required]
+        public int CenterId { get; set; }
+
+        [Required]
+        public int POCId { get; set; }
+
+        [Required]
+        public int CreatedBy { get; set; }
+
+        [Required]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public int? ModifiedBy { get; set; }
+
+        public DateTime? ModifiedAt { get; set; }
+
+        [Required]
         public bool IsDeleted { get; set; } = false;
 
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
-
         // Navigation properties
-        [ForeignKey("BranchId")]
-        public virtual Branch Branch { get; set; } = null!;
-
         [ForeignKey("CenterId")]
-        public virtual Center? Center { get; set; }
+        public virtual Center Center { get; set; } = null!;
 
-        public virtual ICollection<Guardian> Guardians { get; set; } = new List<Guardian>();
+        [ForeignKey("POCId")]
+        public virtual POC POC { get; set; } = null!;
+
+        [ForeignKey("CreatedBy")]
+        public virtual User? CreatedByUser { get; set; }
+
+        [ForeignKey("ModifiedBy")]
+        public virtual User? ModifiedByUser { get; set; }
     }
 }
+
 

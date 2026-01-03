@@ -3,14 +3,28 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
-    public class Branch
+    public class POC
     {
         [Key]
         public int Id { get; set; }
 
         [Required]
-        [StringLength(200)]
-        public string Name { get; set; } = string.Empty;
+        [StringLength(100)]
+        public string FirstName { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? MiddleName { get; set; }
+
+        [Required]
+        [StringLength(100)]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(20)]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        [StringLength(20)]
+        public string? AltPhone { get; set; }
 
         [StringLength(200)]
         public string? Address1 { get; set; }
@@ -24,17 +38,19 @@ namespace MCS.WebApi.Models
         [StringLength(100)]
         public string? State { get; set; }
 
-        [StringLength(100)]
-        public string? Country { get; set; }
-
         [StringLength(20)]
         public string? ZipCode { get; set; }
 
         [StringLength(20)]
-        public string? PhoneNumber { get; set; }
+        public string? Aadhaar { get; set; }
+
+        public DateOnly? DOB { get; set; }
 
         [Required]
-        public int OrgId { get; set; }
+        public int Age { get; set; }
+
+        [Required]
+        public int CenterId { get; set; }
 
         [Required]
         public int CreatedBy { get; set; }
@@ -50,8 +66,8 @@ namespace MCS.WebApi.Models
         public bool IsDeleted { get; set; } = false;
 
         // Navigation properties
-        [ForeignKey("OrgId")]
-        public virtual Organization Organization { get; set; } = null!;
+        [ForeignKey("CenterId")]
+        public virtual Center Center { get; set; } = null!;
 
         [ForeignKey("CreatedBy")]
         public virtual User? CreatedByUser { get; set; }
@@ -59,8 +75,7 @@ namespace MCS.WebApi.Models
         [ForeignKey("ModifiedBy")]
         public virtual User? ModifiedByUser { get; set; }
 
-        public virtual ICollection<User> Users { get; set; } = new List<User>();
-        public virtual ICollection<Center> Centers { get; set; } = new List<Center>();
+        public virtual ICollection<Member> Members { get; set; } = new List<Member>();
     }
 }
 

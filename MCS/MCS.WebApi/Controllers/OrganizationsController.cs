@@ -24,9 +24,9 @@ namespace MCS.WebApi.Controllers
         public async Task<ActionResult<IEnumerable<Organization>>> GetOrganizations()
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var orgUser = await _context.OrganizationUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (orgUser == null || orgUser.Role != OrganizationRole.Owner)
+            if (user == null || user.Role != UserRole.Owner)
             {
                 return Forbid();
             }
@@ -40,13 +40,18 @@ namespace MCS.WebApi.Controllers
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
 
             Organization? organization = null;
 
             if (userType == "Organization")
             {
-                var orgUser = await _context.OrganizationUsers.FindAsync(userId);
-                if (orgUser == null || orgUser.OrganizationId != id)
+                if (user.OrgId != id)
                 {
                     return Forbid();
                 }
@@ -66,11 +71,20 @@ namespace MCS.WebApi.Controllers
         [Authorize(Roles = "Owner")]
         public async Task<ActionResult<Organization>> PostOrganization(Organization organization)
         {
-            organization.CreatedDate = DateTime.UtcNow;
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var user = await _context.Users.FindAsync(userId);
+            
+            if (user == null || user.Role != UserRole.Owner)
+            {
+                return Forbid();
+            }
+
+            organization.CreatedBy = userId;
+            organization.CreatedAt = DateTime.UtcNow;
             _context.Organizations.Add(organization);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetOrganization", new { id = organization.OrganizationId }, organization);
+            return CreatedAtAction("GetOrganization", new { id = organization.Id }, organization);
         }
 
         // PUT: api/Organizations/5
@@ -78,33 +92,36 @@ namespace MCS.WebApi.Controllers
         [Authorize(Roles = "Owner")]
         public async Task<IActionResult> PutOrganization(int id, Organization organization)
         {
-            if (id != organization.OrganizationId)
+            if (id != organization.Id)
             {
                 return BadRequest();
             }
 
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var orgUser = await _context.OrganizationUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (orgUser == null || orgUser.Role != OrganizationRole.Owner || orgUser.OrganizationId != id)
+            if (user == null || user.Role != UserRole.Owner || user.OrgId != id)
             {
                 return Forbid();
             }
 
-            _context.Entry(organization).State = EntityState.Modified;
+            var existingOrg = await _context.Organizations.FindAsync(id);
+            if (existingOrg == null)
+            {
+                return NotFound();
+            }
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!OrganizationExists(id))
-                {
-                    return NotFound();
-                }
-                throw;
-            }
+            existingOrg.Name = organization.Name;
+            existingOrg.Address1 = organization.Address1;
+            existingOrg.Address2 = organization.Address2;
+            existingOrg.City = organization.City;
+            existingOrg.State = organization.State;
+            existingOrg.ZipCode = organization.ZipCode;
+            existingOrg.PhoneNumber = organization.PhoneNumber;
+            existingOrg.ModifiedBy = userId;
+            existingOrg.ModifiedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
 
             return NoContent();
         }
@@ -115,9 +132,9 @@ namespace MCS.WebApi.Controllers
         public async Task<IActionResult> DeleteOrganization(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var orgUser = await _context.OrganizationUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (orgUser == null || orgUser.Role != OrganizationRole.Owner || orgUser.OrganizationId != id)
+            if (user == null || user.Role != UserRole.Owner || user.OrgId != id)
             {
                 return Forbid();
             }
@@ -129,6 +146,8 @@ namespace MCS.WebApi.Controllers
             }
 
             organization.IsDeleted = true;
+            organization.ModifiedBy = userId;
+            organization.ModifiedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -136,7 +155,7 @@ namespace MCS.WebApi.Controllers
 
         private bool OrganizationExists(int id)
         {
-            return _context.Organizations.Any(e => e.OrganizationId == id);
+            return _context.Organizations.Any(e => e.Id == id);
         }
     }
 }

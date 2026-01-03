@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MCS.WebApi.Data;
 using MCS.WebApi.Models;
@@ -12,8 +13,7 @@ namespace MCS.WebApi.Services
     public interface IAuthService
     {
         Task<AuthResponseDto?> LoginAsync(LoginDto loginDto);
-        string GenerateJwtToken(OrganizationUser user, string userType);
-        string GenerateJwtToken(BranchUser user, string userType);
+        string GenerateJwtToken(User user);
     }
 
     public class AuthService : IAuthService
@@ -27,75 +27,50 @@ namespace MCS.WebApi.Services
             _configuration = configuration;
         }
 
-        public Task<AuthResponseDto?> LoginAsync(LoginDto loginDto)
+        public async Task<AuthResponseDto?> LoginAsync(LoginDto loginDto)
         {
-            // Try Organization User first
-            var orgUser = _context.OrganizationUsers
-                .FirstOrDefault(u => u.Email == loginDto.Email && !u.IsDeleted);
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == loginDto.Email && !u.IsDeleted);
 
-            if (orgUser != null)
+            if (user == null)
             {
-                if (BCrypt.Net.BCrypt.Verify(loginDto.Password, orgUser.PasswordHash))
-                {
-                    var token = GenerateJwtToken(orgUser, "Organization");
-                    return Task.FromResult<AuthResponseDto?>(new AuthResponseDto
-                    {
-                        Token = token,
-                        UserType = "Organization",
-                        UserId = orgUser.OrgUserId,
-                        OrganizationId = orgUser.OrganizationId,
-                        Role = orgUser.Role.ToString()
-                    });
-                }
+                return null;
             }
 
-            // Try Branch User
-            var branchUser = _context.BranchUsers
-                .FirstOrDefault(u => u.Email == loginDto.Email && !u.IsDeleted);
-
-            if (branchUser != null)
+            if (!BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
             {
-                if (BCrypt.Net.BCrypt.Verify(loginDto.Password, branchUser.PasswordHash))
-                {
-                    var token = GenerateJwtToken(branchUser, "Branch");
-                    return Task.FromResult<AuthResponseDto?>(new AuthResponseDto
-                    {
-                        Token = token,
-                        UserType = "Branch",
-                        UserId = branchUser.BranchUserId,
-                        BranchId = branchUser.BranchId,
-                        Role = branchUser.Role.ToString()
-                    });
-                }
+                return null;
             }
 
-            return Task.FromResult<AuthResponseDto?>(null);
+            var token = GenerateJwtToken(user);
+            var userType = user.Level == UserLevel.Org ? "Organization" : "Branch";
+
+            return new AuthResponseDto
+            {
+                Token = token,
+                UserType = userType,
+                UserId = user.Id,
+                OrganizationId = user.OrgId,
+                BranchId = user.BranchId,
+                Role = user.Role.ToString()
+            };
         }
 
-        public string GenerateJwtToken(OrganizationUser user, string userType)
+        public string GenerateJwtToken(User user)
         {
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.OrgUserId.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Role, user.Role.ToString()),
-                new Claim("UserType", userType),
-                new Claim("OrganizationId", user.OrganizationId.ToString())
+                new Claim("UserType", user.Level == UserLevel.Org ? "Organization" : "Branch"),
+                new Claim("OrganizationId", user.OrgId.ToString())
             };
 
-            return GenerateToken(claims);
-        }
-
-        public string GenerateJwtToken(BranchUser user, string userType)
-        {
-            var claims = new List<Claim>
+            if (user.BranchId.HasValue)
             {
-                new Claim(ClaimTypes.NameIdentifier, user.BranchUserId.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role.ToString()),
-                new Claim("UserType", userType),
-                new Claim("BranchId", user.BranchId.ToString())
-            };
+                claims.Add(new Claim("BranchId", user.BranchId.Value.ToString()));
+            }
 
             return GenerateToken(claims);
         }

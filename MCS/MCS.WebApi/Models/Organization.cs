@@ -6,24 +6,51 @@ namespace MCS.WebApi.Models
     public class Organization
     {
         [Key]
-        public int OrganizationId { get; set; }
+        public int Id { get; set; }
 
         [Required]
         [StringLength(200)]
         public string Name { get; set; } = string.Empty;
 
-        [StringLength(500)]
-        public string? Address { get; set; }
+        [StringLength(200)]
+        public string? Address1 { get; set; }
+
+        [StringLength(200)]
+        public string? Address2 { get; set; }
+
+        [StringLength(100)]
+        public string? City { get; set; }
+
+        [StringLength(100)]
+        public string? State { get; set; }
 
         [StringLength(20)]
-        public string? Phone { get; set; }
+        public string? ZipCode { get; set; }
 
+        [StringLength(20)]
+        public string? PhoneNumber { get; set; }
+
+        [Required]
+        public int CreatedBy { get; set; }
+
+        [Required]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public int? ModifiedBy { get; set; }
+
+        public DateTime? ModifiedAt { get; set; }
+
+        [Required]
         public bool IsDeleted { get; set; } = false;
 
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
-
         // Navigation properties
-        public virtual ICollection<OrganizationUser> OrganizationUsers { get; set; } = new List<OrganizationUser>();
+        [ForeignKey("CreatedBy")]
+        public virtual User? CreatedByUser { get; set; }
+
+        [ForeignKey("ModifiedBy")]
+        public virtual User? ModifiedByUser { get; set; }
+
+        public virtual ICollection<User> Users { get; set; } = new List<User>();
         public virtual ICollection<Branch> Branches { get; set; } = new List<Branch>();
     }
 }

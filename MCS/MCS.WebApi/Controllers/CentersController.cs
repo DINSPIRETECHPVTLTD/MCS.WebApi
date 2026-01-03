@@ -24,28 +24,28 @@ namespace MCS.WebApi.Controllers
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
 
             if (userType == "Organization")
             {
-                var orgUser = await _context.OrganizationUsers.FindAsync(userId);
-                if (orgUser == null)
-                {
-                    return Forbid();
-                }
                 return await _context.Centers
                     .Include(c => c.Branch)
-                    .Where(c => c.Branch.OrganizationId == orgUser.OrganizationId)
+                    .Where(c => c.Branch.OrgId == user.OrgId)
                     .ToListAsync();
             }
             else if (userType == "Branch")
             {
-                var branchUser = await _context.BranchUsers.FindAsync(userId);
-                if (branchUser == null)
+                if (!user.BranchId.HasValue)
                 {
                     return Forbid();
                 }
                 return await _context.Centers
-                    .Where(c => c.BranchId == branchUser.BranchId)
+                    .Where(c => c.BranchId == user.BranchId.Value)
                     .ToListAsync();
             }
 
@@ -58,29 +58,29 @@ namespace MCS.WebApi.Controllers
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
 
             Center? center = null;
 
             if (userType == "Organization")
             {
-                var orgUser = await _context.OrganizationUsers.FindAsync(userId);
-                if (orgUser == null)
-                {
-                    return Forbid();
-                }
                 center = await _context.Centers
                     .Include(c => c.Branch)
-                    .FirstOrDefaultAsync(c => c.CenterId == id && c.Branch.OrganizationId == orgUser.OrganizationId);
+                    .FirstOrDefaultAsync(c => c.Id == id && c.Branch.OrgId == user.OrgId);
             }
             else if (userType == "Branch")
             {
-                var branchUser = await _context.BranchUsers.FindAsync(userId);
-                if (branchUser == null)
+                if (!user.BranchId.HasValue)
                 {
                     return Forbid();
                 }
                 center = await _context.Centers
-                    .FirstOrDefaultAsync(c => c.CenterId == id && c.BranchId == branchUser.BranchId);
+                    .FirstOrDefaultAsync(c => c.Id == id && c.BranchId == user.BranchId.Value);
             }
 
             if (center == null)
@@ -93,51 +93,95 @@ namespace MCS.WebApi.Controllers
 
         // POST: api/Centers
         [HttpPost]
-        [Authorize(Roles = "BranchUser")]
+        [Authorize(Roles = "BranchAdmin,Staff")]
         public async Task<ActionResult<Center>> PostCenter(Center center)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var branchUser = await _context.BranchUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (branchUser == null || branchUser.Role != BranchRole.BranchUser)
+            if (user == null)
             {
                 return Forbid();
             }
 
-            center.BranchId = branchUser.BranchId;
-            center.CreatedDate = DateTime.UtcNow;
+            // Validate Branch belongs to user's organization
+            var branch = await _context.Branches.FindAsync(center.BranchId);
+            if (branch == null)
+            {
+                return BadRequest("Invalid branch");
+            }
+
+            var userType = User.FindFirst("UserType")!.Value;
+            if (userType == "Organization")
+            {
+                if (branch.OrgId != user.OrgId)
+                {
+                    return Forbid();
+                }
+            }
+            else if (userType == "Branch")
+            {
+                if (!user.BranchId.HasValue || branch.Id != user.BranchId.Value)
+                {
+                    return Forbid();
+                }
+            }
+
+            center.CreatedBy = userId;
+            center.CreatedAt = DateTime.UtcNow;
             _context.Centers.Add(center);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetCenter", new { id = center.CenterId }, center);
+            return CreatedAtAction("GetCenter", new { id = center.Id }, center);
         }
 
         // PUT: api/Centers/5
         [HttpPut("{id}")]
-        [Authorize(Roles = "BranchUser")]
+        [Authorize(Roles = "BranchAdmin,Staff")]
         public async Task<IActionResult> PutCenter(int id, Center center)
         {
-            if (id != center.CenterId)
+            if (id != center.Id)
             {
                 return BadRequest();
             }
 
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var branchUser = await _context.BranchUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (branchUser == null || branchUser.Role != BranchRole.BranchUser)
+            if (user == null)
             {
                 return Forbid();
             }
 
-            var existingCenter = await _context.Centers.FindAsync(id);
-            if (existingCenter == null || existingCenter.BranchId != branchUser.BranchId)
+            var existingCenter = await _context.Centers
+                .Include(c => c.Branch)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (existingCenter == null)
             {
                 return NotFound();
             }
 
+            // Validate access
+            var userType = User.FindFirst("UserType")!.Value;
+            if (userType == "Organization")
+            {
+                if (existingCenter.Branch.OrgId != user.OrgId)
+                {
+                    return Forbid();
+                }
+            }
+            else if (userType == "Branch")
+            {
+                if (!user.BranchId.HasValue || existingCenter.BranchId != user.BranchId.Value)
+                {
+                    return Forbid();
+                }
+            }
+
             existingCenter.Name = center.Name;
-            existingCenter.Description = center.Description;
+            existingCenter.ModifiedBy = userId;
+            existingCenter.ModifiedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
@@ -146,24 +190,46 @@ namespace MCS.WebApi.Controllers
 
         // DELETE: api/Centers/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "BranchUser")]
+        [Authorize(Roles = "BranchAdmin,Staff")]
         public async Task<IActionResult> DeleteCenter(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var branchUser = await _context.BranchUsers.FindAsync(userId);
+            var user = await _context.Users.FindAsync(userId);
             
-            if (branchUser == null || branchUser.Role != BranchRole.BranchUser)
+            if (user == null)
             {
                 return Forbid();
             }
 
-            var center = await _context.Centers.FindAsync(id);
-            if (center == null || center.BranchId != branchUser.BranchId)
+            var center = await _context.Centers
+                .Include(c => c.Branch)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (center == null)
             {
                 return NotFound();
             }
 
+            // Validate access
+            var userType = User.FindFirst("UserType")!.Value;
+            if (userType == "Organization")
+            {
+                if (center.Branch.OrgId != user.OrgId)
+                {
+                    return Forbid();
+                }
+            }
+            else if (userType == "Branch")
+            {
+                if (!user.BranchId.HasValue || center.BranchId != user.BranchId.Value)
+                {
+                    return Forbid();
+                }
+            }
+
             center.IsDeleted = true;
+            center.ModifiedBy = userId;
+            center.ModifiedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             return NoContent();

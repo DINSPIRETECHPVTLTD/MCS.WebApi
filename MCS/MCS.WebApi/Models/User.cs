@@ -3,14 +3,45 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
-    public class Branch
+    public enum UserRole
+    {
+        Owner = 1,
+        BranchAdmin = 2,
+        Staff = 3
+    }
+
+    public enum UserLevel
+    {
+        Org = 1,
+        Branch = 2
+    }
+
+    public class User
     {
         [Key]
         public int Id { get; set; }
 
         [Required]
+        [StringLength(100)]
+        public string FirstName { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? MiddleName { get; set; }
+
+        [Required]
+        [StringLength(100)]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(50)]
+        public UserRole Role { get; set; }
+
+        [Required]
         [StringLength(200)]
-        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+
+        [StringLength(20)]
+        public string? PhoneNumber { get; set; }
 
         [StringLength(200)]
         public string? Address1 { get; set; }
@@ -24,17 +55,20 @@ namespace MCS.WebApi.Models
         [StringLength(100)]
         public string? State { get; set; }
 
-        [StringLength(100)]
-        public string? Country { get; set; }
-
         [StringLength(20)]
         public string? ZipCode { get; set; }
 
-        [StringLength(20)]
-        public string? PhoneNumber { get; set; }
-
         [Required]
         public int OrgId { get; set; }
+
+        [Required]
+        [StringLength(20)]
+        public UserLevel Level { get; set; }
+
+        public int? BranchId { get; set; }
+
+        [Required]
+        public string PasswordHash { get; set; } = string.Empty;
 
         [Required]
         public int CreatedBy { get; set; }
@@ -53,14 +87,14 @@ namespace MCS.WebApi.Models
         [ForeignKey("OrgId")]
         public virtual Organization Organization { get; set; } = null!;
 
+        [ForeignKey("BranchId")]
+        public virtual Branch? Branch { get; set; }
+
         [ForeignKey("CreatedBy")]
         public virtual User? CreatedByUser { get; set; }
 
         [ForeignKey("ModifiedBy")]
         public virtual User? ModifiedByUser { get; set; }
-
-        public virtual ICollection<User> Users { get; set; } = new List<User>();
-        public virtual ICollection<Center> Centers { get; set; } = new List<Center>();
     }
 }
 
