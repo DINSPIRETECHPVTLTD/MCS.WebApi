@@ -31,7 +31,26 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            return await _context.Organizations.ToListAsync();
+            // Use AsNoTracking and select only Organization properties to avoid circular references
+            return await _context.Organizations
+                .AsNoTracking()
+                .Select(o => new Organization
+                {
+                    Id = o.Id,
+                    Name = o.Name,
+                    Address1 = o.Address1,
+                    Address2 = o.Address2,
+                    City = o.City,
+                    State = o.State,
+                    ZipCode = o.ZipCode,
+                    PhoneNumber = o.PhoneNumber,
+                    CreatedBy = o.CreatedBy,
+                    CreatedAt = o.CreatedAt,
+                    ModifiedBy = o.ModifiedBy,
+                    ModifiedAt = o.ModifiedAt,
+                    IsDeleted = o.IsDeleted
+                })
+                .ToListAsync();
         }
 
         // GET: api/Organizations/5
@@ -55,7 +74,27 @@ namespace MCS.WebApi.Controllers
                 {
                     return Forbid();
                 }
-                organization = await _context.Organizations.FindAsync(id);
+                // Use AsNoTracking and select only Organization properties to avoid circular references
+                organization = await _context.Organizations
+                    .AsNoTracking()
+                    .Where(o => o.Id == id)
+                    .Select(o => new Organization
+                    {
+                        Id = o.Id,
+                        Name = o.Name,
+                        Address1 = o.Address1,
+                        Address2 = o.Address2,
+                        City = o.City,
+                        State = o.State,
+                        ZipCode = o.ZipCode,
+                        PhoneNumber = o.PhoneNumber,
+                        CreatedBy = o.CreatedBy,
+                        CreatedAt = o.CreatedAt,
+                        ModifiedBy = o.ModifiedBy,
+                        ModifiedAt = o.ModifiedAt,
+                        IsDeleted = o.IsDeleted
+                    })
+                    .FirstOrDefaultAsync();
             }
 
             if (organization == null)
