@@ -33,8 +33,33 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
+            // Return only User properties without navigation properties to avoid circular references
             return await _context.Users
+                .AsNoTracking()
                 .Where(u => u.OrgId == user.OrgId)
+                .Select(u => new User
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    MiddleName = u.MiddleName,
+                    LastName = u.LastName,
+                    Role = u.Role,
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    Address1 = u.Address1,
+                    Address2 = u.Address2,
+                    City = u.City,
+                    State = u.State,
+                    ZipCode = u.ZipCode,
+                    OrgId = u.OrgId,
+                    Level = u.Level,
+                    BranchId = u.BranchId,
+                    CreatedBy = u.CreatedBy,
+                    CreatedAt = u.CreatedAt,
+                    ModifiedBy = u.ModifiedBy,
+                    ModifiedAt = u.ModifiedAt,
+                    IsDeleted = u.IsDeleted
+                })
                 .ToListAsync();
         }
 
@@ -50,8 +75,36 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            var user = await _context.Users.FindAsync(id);
-            if (user == null || user.OrgId != currentUser.OrgId)
+            // Return only User properties without navigation properties to avoid circular references
+            var user = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Id == id && u.OrgId == currentUser.OrgId)
+                .Select(u => new User
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    MiddleName = u.MiddleName,
+                    LastName = u.LastName,
+                    Role = u.Role,
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    Address1 = u.Address1,
+                    Address2 = u.Address2,
+                    City = u.City,
+                    State = u.State,
+                    ZipCode = u.ZipCode,
+                    OrgId = u.OrgId,
+                    Level = u.Level,
+                    BranchId = u.BranchId,
+                    CreatedBy = u.CreatedBy,
+                    CreatedAt = u.CreatedAt,
+                    ModifiedBy = u.ModifiedBy,
+                    ModifiedAt = u.ModifiedAt,
+                    IsDeleted = u.IsDeleted
+                })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
             {
                 return NotFound();
             }
@@ -115,7 +168,36 @@ namespace MCS.WebApi.Controllers
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetUser", new { id = user.Id }, user);
+            // Reload user without navigation properties to avoid circular references
+            var createdUser = await _context.Users
+                .AsNoTracking()
+                .Where(u => u.Id == user.Id)
+                .Select(u => new User
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    MiddleName = u.MiddleName,
+                    LastName = u.LastName,
+                    Role = u.Role,
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    Address1 = u.Address1,
+                    Address2 = u.Address2,
+                    City = u.City,
+                    State = u.State,
+                    ZipCode = u.ZipCode,
+                    OrgId = u.OrgId,
+                    Level = u.Level,
+                    BranchId = u.BranchId,
+                    CreatedBy = u.CreatedBy,
+                    CreatedAt = u.CreatedAt,
+                    ModifiedBy = u.ModifiedBy,
+                    ModifiedAt = u.ModifiedAt,
+                    IsDeleted = u.IsDeleted
+                })
+                .FirstOrDefaultAsync();
+
+            return CreatedAtAction("GetUser", new { id = user.Id }, createdUser);
         }
 
         // PUT: api/Users/5
