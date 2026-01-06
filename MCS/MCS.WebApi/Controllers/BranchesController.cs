@@ -31,11 +31,12 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
+            // Return only Branch properties without navigation properties to avoid circular references
+            IQueryable<Branch> query = _context.Branches.AsNoTracking();
+
             if (userType == "Organization")
             {
-                return await _context.Branches
-                    .Where(b => b.OrgId == user.OrgId)
-                    .ToListAsync();
+                query = query.Where(b => b.OrgId == user.OrgId);
             }
             else if (userType == "Branch")
             {
@@ -43,12 +44,33 @@ namespace MCS.WebApi.Controllers
                 {
                     return Forbid();
                 }
-                return await _context.Branches
-                    .Where(b => b.Id == user.BranchId.Value)
-                    .ToListAsync();
+                query = query.Where(b => b.Id == user.BranchId.Value);
+            }
+            else
+            {
+                return Forbid();
             }
 
-            return Forbid();
+            return await query
+                .Select(b => new Branch
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Address1 = b.Address1,
+                    Address2 = b.Address2,
+                    City = b.City,
+                    State = b.State,
+                    Country = b.Country,
+                    ZipCode = b.ZipCode,
+                    PhoneNumber = b.PhoneNumber,
+                    OrgId = b.OrgId,
+                    CreatedBy = b.CreatedBy,
+                    CreatedAt = b.CreatedAt,
+                    ModifiedBy = b.ModifiedBy,
+                    ModifiedAt = b.ModifiedAt,
+                    IsDeleted = b.IsDeleted
+                })
+                .ToListAsync();
         }
 
         // GET: api/Branches/5
@@ -64,12 +86,11 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            Branch? branch = null;
+            IQueryable<Branch> query = _context.Branches.AsNoTracking();
 
             if (userType == "Organization")
             {
-                branch = await _context.Branches
-                    .FirstOrDefaultAsync(b => b.Id == id && b.OrgId == user.OrgId);
+                query = query.Where(b => b.Id == id && b.OrgId == user.OrgId);
             }
             else if (userType == "Branch")
             {
@@ -77,8 +98,34 @@ namespace MCS.WebApi.Controllers
                 {
                     return Forbid();
                 }
-                branch = await _context.Branches.FindAsync(id);
+                query = query.Where(b => b.Id == id);
             }
+            else
+            {
+                return Forbid();
+            }
+
+            // Return only Branch properties without navigation properties to avoid circular references
+            var branch = await query
+                .Select(b => new Branch
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Address1 = b.Address1,
+                    Address2 = b.Address2,
+                    City = b.City,
+                    State = b.State,
+                    Country = b.Country,
+                    ZipCode = b.ZipCode,
+                    PhoneNumber = b.PhoneNumber,
+                    OrgId = b.OrgId,
+                    CreatedBy = b.CreatedBy,
+                    CreatedAt = b.CreatedAt,
+                    ModifiedBy = b.ModifiedBy,
+                    ModifiedAt = b.ModifiedAt,
+                    IsDeleted = b.IsDeleted
+                })
+                .FirstOrDefaultAsync();
 
             if (branch == null)
             {
@@ -107,7 +154,31 @@ namespace MCS.WebApi.Controllers
             _context.Branches.Add(branch);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetBranch", new { id = branch.Id }, branch);
+            // Reload branch without navigation properties to avoid circular references
+            var createdBranch = await _context.Branches
+                .AsNoTracking()
+                .Where(b => b.Id == branch.Id)
+                .Select(b => new Branch
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Address1 = b.Address1,
+                    Address2 = b.Address2,
+                    City = b.City,
+                    State = b.State,
+                    Country = b.Country,
+                    ZipCode = b.ZipCode,
+                    PhoneNumber = b.PhoneNumber,
+                    OrgId = b.OrgId,
+                    CreatedBy = b.CreatedBy,
+                    CreatedAt = b.CreatedAt,
+                    ModifiedBy = b.ModifiedBy,
+                    ModifiedAt = b.ModifiedAt,
+                    IsDeleted = b.IsDeleted
+                })
+                .FirstOrDefaultAsync();
+
+            return CreatedAtAction("GetBranch", new { id = branch.Id }, createdBranch);
         }
 
         // PUT: api/Branches/5

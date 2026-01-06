@@ -68,8 +68,6 @@ namespace MCS.WebApi.Controllers
 
             Organization? organization = null;
 
-            if (userType == "Organization")
-            {
                 if (user.OrgId != id)
                 {
                     return Forbid();
@@ -95,7 +93,7 @@ namespace MCS.WebApi.Controllers
                         IsDeleted = o.IsDeleted
                     })
                     .FirstOrDefaultAsync();
-            }
+            
 
             if (organization == null)
             {
