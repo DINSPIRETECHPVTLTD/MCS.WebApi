@@ -15,6 +15,8 @@ namespace MCS.WebApi.Controllers
             _authService = authService;
         }
 
+        //test
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
