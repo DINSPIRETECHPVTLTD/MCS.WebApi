@@ -5,8 +5,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MCS.WebApi.Data;
 using MCS.WebApi.Models;
-using MCS.WebApi.DTOs;
 using BCrypt.Net;
+using MCS.WebApi.DTOs.Auth;
+using MCS.WebApi.DTOs.Organization;
+using MCS.WebApi.DTOs.Branch;
 
 namespace MCS.WebApi.Services
 {
@@ -45,13 +47,58 @@ namespace MCS.WebApi.Services
             var token = GenerateJwtToken(user);
             var userType = user.Level == UserLevel.Org ? "Organization" : "Branch";
 
+            var organization = await _context.Organizations
+                .Include(o => o.Branches)
+                .FirstOrDefaultAsync(o => o.Id == user.OrgId);
+
+            if (organization == null)
+            {
+                return null; // Or handle appropriately if organization is required
+            }
+
+            var orgDto = new OrganizationWithBranchDto
+            {
+                Id = organization.Id,
+                Name = organization.Name,
+                Address1 = organization.Address1,
+                Address2 = organization.Address2,
+                City = organization.City,
+                State = organization.State,
+                // Country not present in Organization model
+                ZipCode = organization.ZipCode,
+                PhoneNumber = organization.PhoneNumber,
+                Branches = new List<BranchInfoDto>()
+            };
+
+            var branchesQuery = organization.Branches.AsQueryable().Where(b => !b.IsDeleted);
+
+            if (user.Level != UserLevel.Org && user.BranchId.HasValue)
+            {
+                branchesQuery = branchesQuery.Where(b => b.Id == user.BranchId.Value);
+            }
+
+            orgDto.Branches = branchesQuery.Select(b => new BranchInfoDto
+            {
+                Id = b.Id,
+                Name = b.Name,
+                Address1 = b.Address1,
+                Address2 = b.Address2,
+                City = b.City,
+                State = b.State,
+                Country = b.Country,
+                ZipCode = b.ZipCode,
+                PhoneNumber = b.PhoneNumber
+            }).ToList();
+
             return new AuthResponseDto
             {
                 Token = token,
                 UserType = userType,
                 UserId = user.Id,
-                OrganizationId = user.OrgId,
-                BranchId = user.BranchId,
+                UserName = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Organization = orgDto,
                 Role = user.Role.ToString()
             };
         }

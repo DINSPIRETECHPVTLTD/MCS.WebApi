@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using MCS.WebApi.DTOs;
 using MCS.WebApi.Services;
+using MCS.WebApi.DTOs.Auth;
 
 namespace MCS.WebApi.Controllers
 {
