@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
+
 namespace MCS.WebApi.Models
 {
     public class Branch
@@ -36,6 +37,10 @@ namespace MCS.WebApi.Models
         [Required]
         public int OrgId { get; set; }
 
+        // Navigation properties
+        [ForeignKey("OrgId")]
+        public virtual Organization Organization { get; set; } = null!;
+
         [Required]
         public int CreatedBy { get; set; }
 
@@ -49,10 +54,6 @@ namespace MCS.WebApi.Models
         [Required]
         public bool IsDeleted { get; set; } = false;
 
-        // Navigation properties
-        [ForeignKey("OrgId")]
-        public virtual Organization Organization { get; set; } = null!;
-
         [ForeignKey("CreatedBy")]
         public virtual User? CreatedByUser { get; set; }
 
@@ -61,6 +62,7 @@ namespace MCS.WebApi.Models
 
         public virtual ICollection<User> Users { get; set; } = new List<User>();
         public virtual ICollection<Center> Centers { get; set; } = new List<Center>();
+
     }
 }
 
