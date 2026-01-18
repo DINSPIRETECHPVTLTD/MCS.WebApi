@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace MCS.WebApi.Models
 {
@@ -34,6 +35,7 @@ namespace MCS.WebApi.Models
         public string? PhoneNumber { get; set; }
 
         [Required]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public int OrgId { get; set; }
 
         [Required]
@@ -49,18 +51,12 @@ namespace MCS.WebApi.Models
         [Required]
         public bool IsDeleted { get; set; } = false;
 
-        // Navigation properties
-        [ForeignKey("OrgId")]
-        public virtual Organization Organization { get; set; } = null!;
-
         [ForeignKey("CreatedBy")]
         public virtual User? CreatedByUser { get; set; }
 
         [ForeignKey("ModifiedBy")]
         public virtual User? ModifiedByUser { get; set; }
 
-        public virtual ICollection<User> Users { get; set; } = new List<User>();
-        public virtual ICollection<Center> Centers { get; set; } = new List<Center>();
     }
 }
 

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MCS.WebApi.Data;
 using MCS.WebApi.Models;
+using MCS.WebApi.Models.DTOs;
+using MCS.WebApi.Models.DTOs;
 
 namespace MCS.WebApi.Controllers
 {
@@ -138,7 +140,7 @@ namespace MCS.WebApi.Controllers
         // POST: api/Branches
         [HttpPost]
         [Authorize(Roles = "Owner")]
-        public async Task<ActionResult<Branch>> PostBranch(Branch branch)
+        public async Task<ActionResult<Branch>> PostBranch(CreateBranchDto branchDto)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
@@ -148,9 +150,22 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            branch.OrgId = user.OrgId;
-            branch.CreatedBy = userId;
-            branch.CreatedAt = DateTime.UtcNow;
+            var branch = new Branch
+            {
+                Name = branchDto.Name,
+                Address1 = branchDto.Address1,
+                Address2 = branchDto.Address2,
+                City = branchDto.City,
+                State = branchDto.State,
+                Country = branchDto.Country,
+                ZipCode = branchDto.ZipCode,
+                PhoneNumber = branchDto.PhoneNumber,
+                OrgId = user.OrgId,
+                CreatedBy = userId,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
+            };
+
             _context.Branches.Add(branch);
             await _context.SaveChangesAsync();
 

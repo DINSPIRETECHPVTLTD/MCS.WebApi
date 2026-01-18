@@ -54,7 +54,7 @@ namespace MCS.WebApi.Data
 
             modelBuilder.Entity<User>()
                 .HasOne(u => u.Branch)
-                .WithMany(b => b.Users)
+                .WithMany()
                 .HasForeignKey(u => u.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -73,7 +73,7 @@ namespace MCS.WebApi.Data
 
             // Configure Branch relationships
             modelBuilder.Entity<Branch>()
-                .HasOne(b => b.Organization)
+                .HasOne<Organization>()
                 .WithMany(org => org.Branches)
                 .HasForeignKey(b => b.OrgId)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -106,7 +106,7 @@ namespace MCS.WebApi.Data
             // Configure Center relationships
             modelBuilder.Entity<Center>()
                 .HasOne(c => c.Branch)
-                .WithMany(b => b.Centers)
+                .WithMany()
                 .HasForeignKey(c => c.BranchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
