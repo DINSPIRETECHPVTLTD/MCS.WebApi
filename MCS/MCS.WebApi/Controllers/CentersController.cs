@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MCS.WebApi.Data;
 using MCS.WebApi.Models;
+using MCS.WebApi.DTOs;
 
 namespace MCS.WebApi.Controllers
 {
@@ -20,7 +21,7 @@ namespace MCS.WebApi.Controllers
 
         // GET: api/Centers
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Center>>> GetCenters()
+        public async Task<ActionResult<IEnumerable<CenterDto>>> GetCenters()
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
@@ -36,6 +37,7 @@ namespace MCS.WebApi.Controllers
                 return await _context.Centers
                     .Include(c => c.Branch)
                     .Where(c => c.Branch.OrgId == user.OrgId)
+                    .Select(c=>new CenterDto {CenterId=c.Id,CenterName=c.Name,CreatedBy = c.CreatedBy, BranchId=c.BranchId, CreatedAt = c.CreatedAt, ModifiedBy = c.ModifiedBy, ModifiedAt = c.ModifiedAt, IsDeleted = c.IsDeleted})
                     .ToListAsync();
             }
             else if (userType == "Branch")
@@ -46,6 +48,7 @@ namespace MCS.WebApi.Controllers
                 }
                 return await _context.Centers
                     .Where(c => c.BranchId == user.BranchId.Value)
+                    .Select(c => new CenterDto { CenterId = c.Id, CenterName = c.Name,CreatedBy=c. CreatedBy, BranchId = c.BranchId, CreatedAt = c.CreatedAt, ModifiedBy = c.ModifiedBy, ModifiedAt=c.ModifiedAt,IsDeleted=c.IsDeleted})
                     .ToListAsync();
             }
 
@@ -54,7 +57,7 @@ namespace MCS.WebApi.Controllers
 
         // GET: api/Centers/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Center>> GetCenter(int id)
+        public async Task<ActionResult<CenterDto>> GetCenter(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
@@ -65,13 +68,16 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            Center? center = null;
+            CenterDto? centerDto = null;
 
             if (userType == "Organization")
             {
-                center = await _context.Centers
+                centerDto = await _context.Centers
                     .Include(c => c.Branch)
-                    .FirstOrDefaultAsync(c => c.Id == id && c.Branch.OrgId == user.OrgId);
+                    .Where(c => c.Branch.OrgId == user.OrgId)
+                    .Select(c => new CenterDto { CenterId = c.Id, CenterName = c.Name, CreatedBy = c.CreatedBy, BranchId = c.BranchId, CreatedAt = c.CreatedAt, ModifiedBy = c.ModifiedBy, ModifiedAt = c.ModifiedAt, IsDeleted = c.IsDeleted })
+
+                    .FirstOrDefaultAsync();
             }
             else if (userType == "Branch")
             {
@@ -79,22 +85,28 @@ namespace MCS.WebApi.Controllers
                 {
                     return Forbid();
                 }
-                center = await _context.Centers
-                    .FirstOrDefaultAsync(c => c.Id == id && c.BranchId == user.BranchId.Value);
+                centerDto = await _context.Centers
+                    .Include(c => c.Branch)
+                    .Where(c => c.Id == id && c.BranchId == user.BranchId.Value)
+                    .Select(c => new CenterDto { CenterId = c.Id, CenterName = c.Name, CreatedBy = c.CreatedBy, BranchId = c.BranchId, CreatedAt = c.CreatedAt, ModifiedBy = c.ModifiedBy, ModifiedAt = c.ModifiedAt, IsDeleted = c.IsDeleted })
+
+                    .FirstOrDefaultAsync();
+
             }
 
-            if (center == null)
+            if (centerDto == null)
             {
                 return NotFound();
             }
+            return new CenterDto();
 
-            return center;
+      
         }
 
         // POST: api/Centers
         [HttpPost]
-        [Authorize(Roles = "BranchAdmin,Staff")]
-        public async Task<ActionResult<Center>> PostCenter(Center center)
+        [Authorize(Roles = "Owner,BranchAdmin,Staff")]
+        public async Task<ActionResult<CenterDto>> PostCenter(CreateCenterDto centerDto)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
@@ -103,9 +115,14 @@ namespace MCS.WebApi.Controllers
             {
                 return Forbid();
             }
+            var center = new Center
+            {
+                Name = centerDto.CenterName,
+                BranchId = centerDto.BranchId
+            };      
 
             // Validate Branch belongs to user's organization
-            var branch = await _context.Branches.FindAsync(center.BranchId);
+            var branch = await _context.Branches.FindAsync(centerDto.BranchId);
             if (branch == null)
             {
                 return BadRequest("Invalid branch");
@@ -137,7 +154,7 @@ namespace MCS.WebApi.Controllers
 
         // PUT: api/Centers/5
         [HttpPut("{id}")]
-        [Authorize(Roles = "BranchAdmin,Staff")]
+        [Authorize(Roles = "Owner,BranchAdmin,Staff")]
         public async Task<IActionResult> PutCenter(int id, Center center)
         {
             if (id != center.Id)
@@ -190,7 +207,7 @@ namespace MCS.WebApi.Controllers
 
         // DELETE: api/Centers/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "BranchAdmin,Staff")]
+        [Authorize(Roles = "Owner,BranchAdmin,Staff")]
         public async Task<IActionResult> DeleteCenter(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
