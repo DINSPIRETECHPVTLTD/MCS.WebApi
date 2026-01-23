@@ -98,7 +98,7 @@ namespace MCS.WebApi.Controllers
             {
                 return NotFound();
             }
-            return new CenterDto();
+            return centerDto;
 
       
         }
@@ -149,7 +149,7 @@ namespace MCS.WebApi.Controllers
             _context.Centers.Add(center);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetCenter", new { id = center.Id }, center);
+            return await GetCenter(center.Id);
         }
 
         // PUT: api/Centers/5
