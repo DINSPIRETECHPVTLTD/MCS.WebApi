@@ -43,6 +43,8 @@ namespace MCS.WebApi.Models
 
         [StringLength(20)]
         public string? Aadhaar { get; set; }
+        public string? Occupation {  get; set; }
+        [StringLength(50)]
 
         public DateOnly? DOB { get; set; }
 
