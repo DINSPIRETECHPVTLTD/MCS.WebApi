@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
+    [Table("Members", Schema = "dinspire_mfdev")]
     public class Member
     {
         [Key]
@@ -42,15 +43,17 @@ namespace MCS.WebApi.Models
         public string? ZipCode { get; set; }
 
         [StringLength(20)]
-        public string? Aadhaar { get; set; }
+       public string? Aadhaar { get; set; }
+
+       [StringLength(100)]
+       public string? Occupation { get; set; }
 
         public DateOnly? DOB { get; set; }
 
         [Required]
         public int Age { get; set; }
 
-        [Required]
-        [StringLength(100)]
+        
         public string GuardianFirstName { get; set; } = string.Empty;
 
         [StringLength(100)]
@@ -86,7 +89,7 @@ namespace MCS.WebApi.Models
         public DateTime? ModifiedAt { get; set; }
 
         [Required]
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;  // FIXED TYPO
 
         // Navigation properties
         [ForeignKey("CenterId")]
@@ -102,5 +105,3 @@ namespace MCS.WebApi.Models
         public virtual User? ModifiedByUser { get; set; }
     }
 }
-
-

@@ -93,7 +93,7 @@ namespace MCS.WebApi.Controllers
 
         // POST: api/Centers
         [HttpPost]
-        [Authorize(Roles = "BranchAdmin,Staff")]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
         public async Task<ActionResult<Center>> PostCenter(Center center)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);

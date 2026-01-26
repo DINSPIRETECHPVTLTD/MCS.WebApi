@@ -1,8 +1,10 @@
+using MCS.WebApi.Data;
+using MCS.WebApi.Models;
+using MCS.WebApi.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MCS.WebApi.Data;
-using MCS.WebApi.Models;
+using System.Security.Claims;
 
 namespace MCS.WebApi.Controllers
 {
@@ -101,58 +103,46 @@ namespace MCS.WebApi.Controllers
 
         // POST: api/Members
         [HttpPost]
-        [Authorize(Roles = "BranchAdmin,Staff")]
-        public async Task<ActionResult<Member>> PostMember(Member member)
-        {
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var user = await _context.Users.FindAsync(userId);
-            
-            if (user == null)
+            [Authorize(Roles = "BranchAdmin,Staff,Owner")]
+            public async Task<ActionResult<Member>> PostMember(CreateMemberDto dto)
             {
-                return Forbid();
-            }
+                var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-            // Validate Center belongs to user's organization/branch
-            var center = await _context.Centers
-                .Include(c => c.Branch)
-                .FirstOrDefaultAsync(c => c.Id == member.CenterId);
-
-            if (center == null)
-            {
-                return BadRequest("Invalid center");
-            }
-
-            var userType = User.FindFirst("UserType")!.Value;
-            if (userType == "Organization")
-            {
-                if (center.Branch.OrgId != user.OrgId)
+                var member = new Member
                 {
-                    return Forbid();
-                }
+                    FirstName = dto.FirstName,
+                    LastName = dto.LastName,
+                    PhoneNumber = dto.PhoneNumber,
+                    DOB = dto.DOB,
+                    Age = dto.Age,
+                    GuardianFirstName = dto.GuardianFirstName,
+                    GuardianLastName = dto.GuardianLastName,
+                    GuardianPhone = dto.GuardianPhone,
+                    GuardianDOB = dto.GuardianDOB,
+                    GuardianAge = dto.GuardianAge,
+                    CenterId = dto.CenterId,
+                    POCId = dto.POCId,
+                    CreatedBy = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    MiddleName = dto.MiddleName,
+                    AltPhone = dto.AltPhone,
+                    Address1 = dto.Address1,
+                    Address2 = dto.Address2,
+                    City = dto.City,
+                    State = dto.State,
+                    ZipCode = dto.ZipCode,
+                    Aadhaar = dto.Aadhaar,
+                    Occupation = dto.Occupation,
+                    GuardianMiddleName = dto.GuardianMiddleName,
+                };
+
+                _context.Members.Add(member);
+                await _context.SaveChangesAsync();
+
+                return CreatedAtAction("GetMember", new { id = member.Id }, member);
             }
-            else if (userType == "Branch")
-            {
-                if (!user.BranchId.HasValue || center.BranchId != user.BranchId.Value)
-                {
-                    return Forbid();
-                }
-            }
 
-            // Validate POC belongs to the same center
-            var poc = await _context.POCs.FindAsync(member.POCId);
-            if (poc == null || poc.CenterId != member.CenterId)
-            {
-                return BadRequest("Invalid POC or POC does not belong to the center");
-            }
-
-            member.CreatedBy = userId;
-            member.CreatedAt = DateTime.UtcNow;
-            _context.Members.Add(member);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetMember", new { id = member.Id }, member);
-        }
-
+        
         // PUT: api/Members/5
         [HttpPut("{id}")]
         [Authorize(Roles = "BranchAdmin,Staff")]

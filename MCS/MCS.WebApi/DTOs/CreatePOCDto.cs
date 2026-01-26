@@ -1,14 +1,9 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace MCS.WebApi.Models
+namespace MCS.WebApi.DTOs
 {
-    [Table("POCs", Schema = "dinspire_mfdev")]
-    public class POC
+    public class CreatePOCDto
     {
-        [Key]
-        public int Id { get; set; }
-
         [Required]
         [StringLength(100)]
         public string FirstName { get; set; } = string.Empty;
@@ -44,31 +39,5 @@ namespace MCS.WebApi.Models
 
         [Required]
         public int CenterId { get; set; }
-
-        [Required]
-        public int CreatedBy { get; set; }
-
-        [Required]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        public int? ModifiedBy { get; set; }
-
-        public DateTime? ModifiedAt { get; set; }
-
-        [Required]
-        public bool IsDeleted { get; set; } = false;
-
-        // Navigation properties
-        [ForeignKey("CenterId")]
-        public virtual Center? Center { get; set; }
-
-        [ForeignKey("CreatedBy")]
-        public virtual User? CreatedByUser { get; set; }
-
-        [ForeignKey("ModifiedBy")]
-        public virtual User? ModifiedByUser { get; set; }
-
-        public virtual ICollection<Member>? Members { get; set; }
     }
 }
-
