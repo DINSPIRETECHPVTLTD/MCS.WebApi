@@ -15,8 +15,9 @@ namespace MCS.WebApi.Models.DTOs
 
         public DateOnly? DOB { get; set; }
 
-        [Required]
+      
         public int Age { get; set; }
+
 
         [Required]
         public string GuardianFirstName { get; set; } = string.Empty;
@@ -44,8 +45,9 @@ namespace MCS.WebApi.Models.DTOs
         public string? City { get; set; }
         public string? State { get; set; }
         public string? ZipCode { get; set; }
+        [StringLength(20)]
         public string? Aadhaar { get; set; }
-        
+
         public string? Occupation {  get; set; }
 
         public string? GuardianMiddleName { get; set; }

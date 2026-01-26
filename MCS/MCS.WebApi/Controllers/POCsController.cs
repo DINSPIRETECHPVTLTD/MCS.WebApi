@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MCS.WebApi.Data;
 using MCS.WebApi.Models;
+using MCS.WebApi.DTOs;
+using System.Security.Claims;
 
 namespace MCS.WebApi.Controllers
 {
@@ -22,7 +24,7 @@ namespace MCS.WebApi.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<POC>>> GetPOCs()
         {
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
 
@@ -36,7 +38,7 @@ namespace MCS.WebApi.Controllers
                 return await _context.POCs
                     .Include(p => p.Center)
                     .ThenInclude(c => c.Branch)
-                    .Where(p => p.Center.Branch.OrgId == user.OrgId)
+                    .Where(p => p.Center.Branch.OrgId == user.OrgId && !p.IsDeleted)
                     .ToListAsync();
             }
             else if (userType == "Branch")
@@ -47,7 +49,7 @@ namespace MCS.WebApi.Controllers
                 }
                 return await _context.POCs
                     .Include(p => p.Center)
-                    .Where(p => p.Center.BranchId == user.BranchId.Value)
+                    .Where(p => p.Center.BranchId == user.BranchId.Value && !p.IsDeleted)
                     .ToListAsync();
             }
 
@@ -58,7 +60,7 @@ namespace MCS.WebApi.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<POC>> GetPOC(int id)
         {
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
 
@@ -74,7 +76,7 @@ namespace MCS.WebApi.Controllers
                 poc = await _context.POCs
                     .Include(p => p.Center)
                     .ThenInclude(c => c.Branch)
-                    .FirstOrDefaultAsync(p => p.Id == id && p.Center.Branch.OrgId == user.OrgId);
+                    .FirstOrDefaultAsync(p => p.Id == id && p.Center.Branch.OrgId == user.OrgId && !p.IsDeleted);
             }
             else if (userType == "Branch")
             {
@@ -84,7 +86,7 @@ namespace MCS.WebApi.Controllers
                 }
                 poc = await _context.POCs
                     .Include(p => p.Center)
-                    .FirstOrDefaultAsync(p => p.Id == id && p.Center.BranchId == user.BranchId.Value);
+                    .FirstOrDefaultAsync(p => p.Id == id && p.Center.BranchId == user.BranchId.Value && !p.IsDeleted);
             }
 
             if (poc == null)
@@ -95,11 +97,11 @@ namespace MCS.WebApi.Controllers
             return poc;
         }
 
-        // GET: api/POCs/Center/5
-        [HttpGet("Center/{centerId}")]
+        // GET: api/POCs/center/{centerId}
+        [HttpGet("center/{centerId}")]
         public async Task<ActionResult<IEnumerable<POC>>> GetPOCsByCenter(int centerId)
         {
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
 
@@ -108,58 +110,16 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            Center? center = null;
-
-            if (userType == "Organization")
-            {
-                center = await _context.Centers
-                    .Include(c => c.Branch)
-                    .FirstOrDefaultAsync(c => c.Id == centerId && c.Branch.OrgId == user.OrgId);
-            }
-            else if (userType == "Branch")
-            {
-                if (!user.BranchId.HasValue)
-                {
-                    return Forbid();
-                }
-                center = await _context.Centers
-                    .FirstOrDefaultAsync(c => c.Id == centerId && c.BranchId == user.BranchId.Value);
-            }
-
-            if (center == null)
-            {
-                return NotFound();
-            }
-
-            return await _context.POCs
-                .Where(p => p.CenterId == centerId)
-                .ToListAsync();
-        }
-
-        // POST: api/POCs
-        [HttpPost]
-        [Authorize(Roles = "BranchAdmin,Staff")]
-        public async Task<ActionResult<POC>> PostPOC(POC poc)
-        {
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var user = await _context.Users.FindAsync(userId);
-            
-            if (user == null)
-            {
-                return Forbid();
-            }
-
-            // Validate Center belongs to user's organization/branch
             var center = await _context.Centers
                 .Include(c => c.Branch)
-                .FirstOrDefaultAsync(c => c.Id == poc.CenterId);
+                .FirstOrDefaultAsync(c => c.Id == centerId);
 
             if (center == null)
             {
-                return BadRequest("Invalid center");
+                return NotFound("Center not found");
             }
 
-            var userType = User.FindFirst("UserType")!.Value;
+            // Validate access
             if (userType == "Organization")
             {
                 if (center.Branch.OrgId != user.OrgId)
@@ -175,8 +135,61 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
-            poc.CreatedBy = userId;
-            poc.CreatedAt = DateTime.UtcNow;
+            return await _context.POCs
+                .Where(p => p.CenterId == centerId && !p.IsDeleted)
+                .ToListAsync();
+        }
+
+        // POST: api/POCs
+        [HttpPost]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
+        public async Task<ActionResult<POC>> PostPOC(CreatePOCDto dto)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
+
+            // Validate center access
+            var center = await _context.Centers
+                .Include(c => c.Branch)
+                .FirstOrDefaultAsync(c => c.Id == dto.CenterId);
+
+            if (center == null)
+            {
+                return BadRequest("Invalid center");
+            }
+
+            if (userType == "Organization" && center.Branch.OrgId != user.OrgId)
+            {
+                return Forbid();
+            }
+            else if (userType == "Branch" && (!user.BranchId.HasValue || center.BranchId != user.BranchId.Value))
+            {
+                return Forbid();
+            }
+
+            var poc = new POC
+            {
+                FirstName = dto.FirstName,
+                MiddleName = dto.MiddleName,
+                LastName = dto.LastName,
+                PhoneNumber = dto.PhoneNumber,
+                AltPhone = dto.AltPhone,
+                Address1 = dto.Address1,
+                Address2 = dto.Address2,
+                City = dto.City,
+                State = dto.State,
+                ZipCode = dto.ZipCode,
+                CenterId = dto.CenterId,
+                CreatedBy = userId,
+                CreatedAt = DateTime.UtcNow
+            };
+
             _context.POCs.Add(poc);
             await _context.SaveChangesAsync();
 
@@ -193,9 +206,9 @@ namespace MCS.WebApi.Controllers
                 return BadRequest();
             }
 
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
-            
+
             if (user == null)
             {
                 return Forbid();
@@ -204,7 +217,7 @@ namespace MCS.WebApi.Controllers
             var existingPOC = await _context.POCs
                 .Include(p => p.Center)
                 .ThenInclude(c => c.Branch)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
             if (existingPOC == null)
             {
@@ -260,9 +273,6 @@ namespace MCS.WebApi.Controllers
             existingPOC.City = poc.City;
             existingPOC.State = poc.State;
             existingPOC.ZipCode = poc.ZipCode;
-            existingPOC.Aadhaar = poc.Aadhaar;
-            existingPOC.DOB = poc.DOB;
-            existingPOC.Age = poc.Age;
             existingPOC.CenterId = poc.CenterId;
             existingPOC.ModifiedBy = userId;
             existingPOC.ModifiedAt = DateTime.UtcNow;
@@ -277,9 +287,9 @@ namespace MCS.WebApi.Controllers
         [Authorize(Roles = "BranchAdmin,Staff")]
         public async Task<IActionResult> DeletePOC(int id)
         {
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
-            
+
             if (user == null)
             {
                 return Forbid();
@@ -288,7 +298,7 @@ namespace MCS.WebApi.Controllers
             var poc = await _context.POCs
                 .Include(p => p.Center)
                 .ThenInclude(c => c.Branch)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
 
             if (poc == null)
             {
@@ -310,6 +320,13 @@ namespace MCS.WebApi.Controllers
                 {
                     return Forbid();
                 }
+            }
+
+            // Check if POC is referenced by any members
+            var hasMembers = await _context.Members.AnyAsync(m => m.POCId == id && !m.IsDeleted);
+            if (hasMembers)
+            {
+                return BadRequest("Cannot delete POC as it is assigned to active members");
             }
 
             poc.IsDeleted = true;
