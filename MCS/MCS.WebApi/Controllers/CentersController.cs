@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MCS.WebApi.Data;
 using MCS.WebApi.Models;
+using MCS.WebApi.DTOs;
 
 namespace MCS.WebApi.Controllers
 {
@@ -94,41 +95,55 @@ namespace MCS.WebApi.Controllers
         // POST: api/Centers
         [HttpPost]
         [Authorize(Roles = "BranchAdmin,Staff,Owner")]
-        public async Task<ActionResult<Center>> PostCenter(Center center)
+        public async Task<ActionResult<Center>> PostCenter([FromBody] CreateCenterDto centerDto)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
-            
+
             if (user == null)
             {
                 return Forbid();
             }
 
-            // Validate Branch belongs to user's organization
-            var branch = await _context.Branches.FindAsync(center.BranchId);
+            // Get BranchId from logged-in user
+            int branchId;
+            
+            if (userType == "Branch")
+            {
+                if (!user.BranchId.HasValue)
+                {
+                    return BadRequest("User is not associated with any branch");
+                }
+                branchId = user.BranchId.Value;
+            }
+            else if (userType == "Organization")
+            {
+                return BadRequest("Organization users must specify a branch. Please use branch-level access.");
+            }
+            else
+            {
+                return Forbid();
+            }
+
+            // Validate Branch exists
+            var branch = await _context.Branches.FindAsync(branchId);
             if (branch == null)
             {
                 return BadRequest("Invalid branch");
             }
 
-            var userType = User.FindFirst("UserType")!.Value;
-            if (userType == "Organization")
+            var center = new Center
             {
-                if (branch.OrgId != user.OrgId)
-                {
-                    return Forbid();
-                }
-            }
-            else if (userType == "Branch")
-            {
-                if (!user.BranchId.HasValue || branch.Id != user.BranchId.Value)
-                {
-                    return Forbid();
-                }
-            }
+                Name = centerDto.Name,
+                BranchId = branchId,
+                CreatedBy = userId,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false,
+                CenterAddress = centerDto.CenterAddress,
+                City = centerDto.City
+            };
 
-            center.CreatedBy = userId;
-            center.CreatedAt = DateTime.UtcNow;
             _context.Centers.Add(center);
             await _context.SaveChangesAsync();
 

@@ -28,6 +28,12 @@ namespace MCS.WebApi.Models
         [Required]
         public bool IsDeleted { get; set; } = false;
 
+        [StringLength(500)]
+        public string? CenterAddress { get; set; }
+
+        [StringLength(100)]
+        public string? City { get; set; }
+
         // Navigation properties
         [ForeignKey("BranchId")]
         public virtual Branch Branch { get; set; } = null!;
