@@ -127,8 +127,12 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
+            var now = DateTime.UtcNow;
+
             center.CreatedBy = userId;
-            center.CreatedAt = DateTime.UtcNow;
+            center.CreatedAt = now;
+            center.ModifiedBy = userId;
+            center.ModifiedAt = now;
             _context.Centers.Add(center);
             await _context.SaveChangesAsync();
 
