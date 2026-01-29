@@ -207,7 +207,11 @@ namespace MCS.WebApi.Data
                             }
                             break;
                         case EntityState.Modified:
-                            entry.Property("IsDeleted").IsModified = false;
+                            // Allow soft-delete (IsDeleted = true) to be persisted; only ignore IsDeleted when false (normal update)
+                            if (entry.Property("IsDeleted").CurrentValue is bool isDeleted && !isDeleted)
+                            {
+                                entry.Property("IsDeleted").IsModified = false;
+                            }
                             entry.Property("ModifiedAt").CurrentValue = DateTime.UtcNow;
                             break;
                     }
