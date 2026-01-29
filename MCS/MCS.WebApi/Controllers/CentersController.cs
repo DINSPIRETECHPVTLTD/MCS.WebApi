@@ -141,7 +141,7 @@ namespace MCS.WebApi.Controllers
 
         // PUT: api/Centers/5
         [HttpPut("{id}")]
-        [Authorize(Roles = "BranchAdmin,Staff")]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
         public async Task<IActionResult> PutCenter(int id, Center center)
         {
             if (id != center.Id)
@@ -183,23 +183,29 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
+            // Update all updatable fields
             existingCenter.Name = center.Name;
+            existingCenter.CenterAddress = center.CenterAddress;
+            existingCenter.City = center.City;
+            existingCenter.BranchId = center.BranchId;
+
+            // Always set audit fields server-side
             existingCenter.ModifiedBy = userId;
             existingCenter.ModifiedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            // Return the updated entity
+            return Ok(existingCenter);
         }
 
-        // DELETE: api/Centers/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "BranchAdmin,Staff")]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
         public async Task<IActionResult> DeleteCenter(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
-            
+
             if (user == null)
             {
                 return Forbid();
@@ -231,12 +237,16 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
+            // Soft delete: update IsDeleted, ModifiedBy, ModifiedAt
             center.IsDeleted = true;
             center.ModifiedBy = userId;
             center.ModifiedAt = DateTime.UtcNow;
+
+            // Do NOT use: _context.Entry(center).Property(...).IsModified = true;
+            // Just call SaveChangesAsync
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { id = center.Id, message = "Center soft deleted successfully." });
         }
     }
 }

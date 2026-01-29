@@ -120,7 +120,7 @@ namespace MCS.WebApi.Data
                 .HasOne(c => c.ModifiedByUser)
                 .WithMany()
                 .HasForeignKey(c => c.ModifiedBy)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             // Configure POC relationships
             modelBuilder.Entity<POC>()

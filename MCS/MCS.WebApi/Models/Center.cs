@@ -33,7 +33,8 @@ namespace MCS.WebApi.Models
         public DateTime? ModifiedAt { get; set; }
 
         [Required]
-        public bool IsDeleted { get; set; } = false;
+        public bool IsDeleted { get; set; }
+       // public int IsDeleted { get; set; }
 
         // Navigation properties - ADD JsonIgnore to prevent validation errors
         [ForeignKey("BranchId")]
