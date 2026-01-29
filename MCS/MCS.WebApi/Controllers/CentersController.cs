@@ -19,11 +19,11 @@ namespace MCS.WebApi.Controllers
         }
 
         // GET: api/Centers
+        // Returns all non-deleted centers in the user's organization (all branches) so the View Centers table shows full data.
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Center>>> GetCenters()
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
 
             if (user == null)
@@ -31,25 +31,11 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            if (userType == "Organization")
-            {
-                return await _context.Centers
-                    .Include(c => c.Branch)
-                    .Where(c => c.Branch.OrgId == user.OrgId)
-                    .ToListAsync();
-            }
-            else if (userType == "Branch")
-            {
-                if (!user.BranchId.HasValue)
-                {
-                    return Forbid();
-                }
-                return await _context.Centers
-                    .Where(c => c.BranchId == user.BranchId.Value)
-                    .ToListAsync();
-            }
-
-            return Forbid();
+            return await _context.Centers
+                .Include(c => c.Branch)
+                .Where(c => !c.IsDeleted && c.Branch != null && c.Branch.OrgId == user.OrgId)
+                .OrderBy(c => c.Id)
+                .ToListAsync();
         }
 
         // GET: api/Centers/5
@@ -57,7 +43,6 @@ namespace MCS.WebApi.Controllers
         public async Task<ActionResult<Center>> GetCenter(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
 
             if (user == null)
@@ -65,23 +50,9 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            Center? center = null;
-
-            if (userType == "Organization")
-            {
-                center = await _context.Centers
-                    .Include(c => c.Branch)
-                    .FirstOrDefaultAsync(c => c.Id == id && c.Branch.OrgId == user.OrgId);
-            }
-            else if (userType == "Branch")
-            {
-                if (!user.BranchId.HasValue)
-                {
-                    return Forbid();
-                }
-                center = await _context.Centers
-                    .FirstOrDefaultAsync(c => c.Id == id && c.BranchId == user.BranchId.Value);
-            }
+            var center = await _context.Centers
+                .Include(c => c.Branch)
+                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted && c.Branch != null && c.Branch.OrgId == user.OrgId);
 
             if (center == null)
             {
