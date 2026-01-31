@@ -33,7 +33,7 @@ namespace MCS.WebApi.Controllers
             }
 
             // Return only Branch properties without navigation properties to avoid circular references
-            IQueryable<Branch> query = _context.Branches.AsNoTracking();
+            IQueryable<Branch> query = _context.Branches.AsNoTracking().Where(b => !b.IsDeleted);
 
             if (userType == "Organization")
             {
@@ -87,7 +87,7 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            IQueryable<Branch> query = _context.Branches.AsNoTracking();
+            IQueryable<Branch> query = _context.Branches.AsNoTracking().Where(b => !b.IsDeleted);
 
             if (userType == "Organization")
             {
@@ -198,13 +198,8 @@ namespace MCS.WebApi.Controllers
         // PUT: api/Branches/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Owner")]
-        public async Task<IActionResult> PutBranch(int id, Branch branch)
+        public async Task<IActionResult> PutBranch(int id, CreateBranchDto branchDto)
         {
-            if (id != branch.Id)
-            {
-                return BadRequest();
-            }
-
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
             
@@ -219,14 +214,14 @@ namespace MCS.WebApi.Controllers
                 return NotFound();
             }
 
-            existingBranch.Name = branch.Name;
-            existingBranch.Address1 = branch.Address1;
-            existingBranch.Address2 = branch.Address2;
-            existingBranch.City = branch.City;
-            existingBranch.State = branch.State;
-            existingBranch.Country = branch.Country;
-            existingBranch.ZipCode = branch.ZipCode;
-            existingBranch.PhoneNumber = branch.PhoneNumber;
+            existingBranch.Name = branchDto.Name;
+            existingBranch.Address1 = branchDto.Address1;
+            existingBranch.Address2 = branchDto.Address2;
+            existingBranch.City = branchDto.City;
+            existingBranch.State = branchDto.State;
+            existingBranch.Country = branchDto.Country;
+            existingBranch.ZipCode = branchDto.ZipCode;
+            existingBranch.PhoneNumber = branchDto.PhoneNumber;
             existingBranch.ModifiedBy = userId;
             existingBranch.ModifiedAt = DateTime.UtcNow;
 
