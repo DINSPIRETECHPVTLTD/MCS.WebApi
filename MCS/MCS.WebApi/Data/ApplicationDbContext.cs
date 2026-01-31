@@ -207,7 +207,6 @@ namespace MCS.WebApi.Data
                             }
                             break;
                         case EntityState.Modified:
-                            entry.Property("IsDeleted").IsModified = false;
                             entry.Property("ModifiedAt").CurrentValue = DateTime.UtcNow;
                             break;
                     }
