@@ -336,6 +336,53 @@ namespace MCS.WebApi.Controllers
 
             return NoContent();
         }
+
+        // GET: api/POCs/branch/{branchId}
+        [HttpGet("branch/{branchId}")]
+        public async Task<ActionResult<IEnumerable<POC>>> GetPOCsByBranch(int branchId)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
+
+            var branch = await _context.Branches
+                .FirstOrDefaultAsync(b => b.Id == branchId);
+
+            if (branch == null)
+            {
+                return NotFound("Branch not found");
+            }
+
+            // Validate access
+            if (userType == "Organization")
+            {
+                if (branch.OrgId != user.OrgId)
+                {
+                    return Forbid();
+                }
+            }
+            else if (userType == "Branch")
+            {
+                if (!user.BranchId.HasValue || branch.Id != user.BranchId.Value)
+                {
+                    return Forbid();
+                }
+            }
+
+            // Get all POCs for centers under this branch
+            var pocs = await _context.POCs
+                .Include(p => p.Center)
+                .Where(p => p.Center.BranchId == branchId && !p.IsDeleted)
+                .ToListAsync();
+
+            return pocs;
+        }
+
     }
 }
 

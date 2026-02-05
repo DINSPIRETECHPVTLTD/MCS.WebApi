@@ -57,7 +57,38 @@ namespace MCS.WebApi.Controllers
 
             return Forbid();
         }
+        //GET: api/Members/by Branch
+        //No Direct Relation so using Centers(CenterId) -> BranchId
+        [HttpGet("branch/{branchId}")]
+        public async Task<ActionResult<IEnumerable<Member>>> GetMembersByBranch(int branchId)
+        {
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
 
+            if (user == null)
+                return Forbid();
+
+            if (userType == "Branch")
+            {
+                if (!user.BranchId.HasValue || user.BranchId.Value != branchId)
+                    return Forbid();
+            }
+            else if (userType == "Organization")
+            {
+                var branch = await _context.Branches.FindAsync(branchId);
+                if (branch == null || branch.OrgId != user.OrgId)
+                    return Forbid();
+            }
+
+            var members = await _context.Members
+                .Include(m => m.Center)
+                .Where(m => m.Center.BranchId == branchId)
+                .Include(m => m.POC)
+                .ToListAsync();
+
+            return Ok(members);
+        }
         // GET: api/Members/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Member>> GetMember(int id)
