@@ -203,16 +203,11 @@ namespace MCS.WebApi.Controllers
         // PUT: api/Users/5
         [HttpPut("{id}")]
         [Authorize(Roles = "Owner")]
-        public async Task<IActionResult> PutUser(int id, User user)
+        public async Task<IActionResult> PutUser(int id, UpdateUserDto dto)
         {
-            if (id != user.Id)
-            {
-                return BadRequest();
-            }
-
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var currentUser = await _context.Users.FindAsync(userId);
-            
+
             if (currentUser == null || currentUser.Role != UserRole.Owner)
             {
                 return Forbid();
@@ -224,40 +219,21 @@ namespace MCS.WebApi.Controllers
                 return NotFound();
             }
 
-            existingUser.FirstName = user.FirstName;
-            existingUser.MiddleName = user.MiddleName;
-            existingUser.LastName = user.LastName;
-            existingUser.PhoneNumber = user.PhoneNumber;
-            existingUser.Address1 = user.Address1;
-            existingUser.Address2 = user.Address2;
-            existingUser.City = user.City;
-            existingUser.State = user.State;
-            existingUser.ZipCode = user.ZipCode;
-            existingUser.Role = user.Role;
-            existingUser.Level = user.Level;
-            existingUser.Email = user.Email;
+            // Update only the allowed fields from DTO
+            existingUser.FirstName = dto.FirstName;
+            existingUser.MiddleName = dto.MiddleName;
+            existingUser.LastName = dto.LastName;
+            existingUser.Email = dto.Email;
+            existingUser.PhoneNumber = dto.PhoneNumber;
+            existingUser.Address1 = dto.Address1;
+            existingUser.Address2 = dto.Address2;
+            existingUser.City = dto.City;
+            existingUser.State = dto.State;
+            existingUser.ZipCode = dto.ZipCode;
+
+            // Get ModifiedBy and ModifiedAt from logged-in user
             existingUser.ModifiedBy = userId;
             existingUser.ModifiedAt = DateTime.UtcNow;
-
-            // Only update BranchId if Level is Branch
-            if (user.Level == UserLevel.Branch)
-            {
-                if (user.BranchId.HasValue)
-                {
-                    var branch = await _context.Branches.FindAsync(user.BranchId.Value);
-                    if (branch == null || branch.OrgId != currentUser.OrgId)
-                    {
-                        return BadRequest("Invalid branch");
-                    }
-                    existingUser.BranchId = user.BranchId;
-                }
-            }
-            else
-            {
-                existingUser.BranchId = null;
-            }
-
-            // Password update should be handled via a separate endpoint for security
 
             await _context.SaveChangesAsync();
 
