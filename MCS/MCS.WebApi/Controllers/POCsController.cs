@@ -198,14 +198,9 @@ namespace MCS.WebApi.Controllers
 
         // PUT: api/POCs/5
         [HttpPut("{id}")]
-        [Authorize(Roles = "BranchAdmin,Staff")]
-        public async Task<IActionResult> PutPOC(int id, POC poc)
+        [Authorize(Roles = "Owner,BranchAdmin,Staff")]
+        public async Task<IActionResult> PutPOC(int id, CreatePOCDto poc)
         {
-            if (id != poc.Id)
-            {
-                return BadRequest();
-            }
-
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
 
@@ -284,7 +279,7 @@ namespace MCS.WebApi.Controllers
 
         // DELETE: api/POCs/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "BranchAdmin,Staff")]
+        [Authorize(Roles = "Owner,BranchAdmin,Staff")]
         public async Task<IActionResult> DeletePOC(int id)
         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
