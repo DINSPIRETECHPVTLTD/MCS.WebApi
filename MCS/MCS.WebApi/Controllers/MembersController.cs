@@ -174,6 +174,7 @@ namespace MCS.WebApi.Controllers
                     Aadhaar = dto.Aadhaar,
                     Occupation = dto.Occupation,
                     GuardianMiddleName = dto.GuardianMiddleName,
+                    Relationship = dto.Relationship,
                 };
 
                 _context.Members.Add(member);
@@ -279,6 +280,7 @@ namespace MCS.WebApi.Controllers
             existingMember.GuardianPhone = member.GuardianPhone;
             existingMember.GuardianDOB = member.GuardianDOB;
             existingMember.GuardianAge = member.GuardianAge;
+            existingMember.Relationship = member.Relationship;
             existingMember.CenterId = member.CenterId;
             existingMember.POCId = member.POCId;
             existingMember.ModifiedBy = userId;
