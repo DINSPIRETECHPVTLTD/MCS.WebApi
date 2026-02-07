@@ -19,11 +19,11 @@ namespace MCS.WebApi.Controllers
         }
 
         // GET: api/Centers
+        // Returns all non-deleted centers in the user's organization (all branches) so the View Centers table shows full data.
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Center>>> GetCenters()
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
 
             if (user == null)
@@ -31,25 +31,11 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            if (userType == "Organization")
-            {
-                return await _context.Centers
-                    .Include(c => c.Branch)
-                    .Where(c => c.Branch.OrgId == user.OrgId)
-                    .ToListAsync();
-            }
-            else if (userType == "Branch")
-            {
-                if (!user.BranchId.HasValue)
-                {
-                    return Forbid();
-                }
-                return await _context.Centers
-                    .Where(c => c.BranchId == user.BranchId.Value)
-                    .ToListAsync();
-            }
-
-            return Forbid();
+            return await _context.Centers
+                .Include(c => c.Branch)
+                .Where(c => !c.IsDeleted && c.Branch != null && c.Branch.OrgId == user.OrgId)
+                .OrderBy(c => c.Id)
+                .ToListAsync();
         }
 
         // GET: api/Centers/5
@@ -57,7 +43,6 @@ namespace MCS.WebApi.Controllers
         public async Task<ActionResult<Center>> GetCenter(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
-            var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
 
             if (user == null)
@@ -65,23 +50,9 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            Center? center = null;
-
-            if (userType == "Organization")
-            {
-                center = await _context.Centers
-                    .Include(c => c.Branch)
-                    .FirstOrDefaultAsync(c => c.Id == id && c.Branch.OrgId == user.OrgId);
-            }
-            else if (userType == "Branch")
-            {
-                if (!user.BranchId.HasValue)
-                {
-                    return Forbid();
-                }
-                center = await _context.Centers
-                    .FirstOrDefaultAsync(c => c.Id == id && c.BranchId == user.BranchId.Value);
-            }
+            var center = await _context.Centers
+                .Include(c => c.Branch)
+                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted && c.Branch != null && c.Branch.OrgId == user.OrgId);
 
             if (center == null)
             {
@@ -127,8 +98,12 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
+            var now = DateTime.UtcNow;
+
             center.CreatedBy = userId;
-            center.CreatedAt = DateTime.UtcNow;
+            center.CreatedAt = now;
+            center.ModifiedBy = userId;
+            center.ModifiedAt = now;
             _context.Centers.Add(center);
             await _context.SaveChangesAsync();
 
@@ -137,7 +112,7 @@ namespace MCS.WebApi.Controllers
 
         // PUT: api/Centers/5
         [HttpPut("{id}")]
-        [Authorize(Roles = "BranchAdmin,Staff")]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
         public async Task<IActionResult> PutCenter(int id, Center center)
         {
             if (id != center.Id)
@@ -179,23 +154,29 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
+            // Update all updatable fields
             existingCenter.Name = center.Name;
+            existingCenter.CenterAddress = center.CenterAddress;
+            existingCenter.City = center.City;
+            existingCenter.BranchId = center.BranchId;
+
+            // Always set audit fields server-side
             existingCenter.ModifiedBy = userId;
             existingCenter.ModifiedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            // Return the updated entity
+            return Ok(existingCenter);
         }
 
-        // DELETE: api/Centers/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = "BranchAdmin,Staff")]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
         public async Task<IActionResult> DeleteCenter(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
-            
+
             if (user == null)
             {
                 return Forbid();
@@ -227,12 +208,16 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
+            // Soft delete: update IsDeleted, ModifiedBy, ModifiedAt
             center.IsDeleted = true;
             center.ModifiedBy = userId;
             center.ModifiedAt = DateTime.UtcNow;
+
+            // Do NOT use: _context.Entry(center).Property(...).IsModified = true;
+            // Just call SaveChangesAsync
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { id = center.Id, message = "Center soft deleted successfully." });
         }
     }
 }

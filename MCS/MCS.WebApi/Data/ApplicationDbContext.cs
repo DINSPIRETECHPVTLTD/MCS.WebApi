@@ -120,7 +120,7 @@ namespace MCS.WebApi.Data
                 .HasOne(c => c.ModifiedByUser)
                 .WithMany()
                 .HasForeignKey(c => c.ModifiedBy)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
 
             // Configure POC relationships
             modelBuilder.Entity<POC>()
@@ -207,6 +207,11 @@ namespace MCS.WebApi.Data
                             }
                             break;
                         case EntityState.Modified:
+                            // Allow soft-delete (IsDeleted = true) to be persisted; only ignore IsDeleted when false (normal update)
+                            if (entry.Property("IsDeleted").CurrentValue is bool isDeleted && !isDeleted)
+                            {
+                                entry.Property("IsDeleted").IsModified = false;
+                            }
                             entry.Property("ModifiedAt").CurrentValue = DateTime.UtcNow;
                             break;
                     }
