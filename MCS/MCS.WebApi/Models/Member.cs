@@ -48,6 +48,9 @@ namespace MCS.WebApi.Models
        [StringLength(100)]
        public string? Occupation { get; set; }
 
+        [StringLength(100)]
+        public string? Relationship { get; set; }
+
         public DateOnly? DOB { get; set; }
 
         [Required]

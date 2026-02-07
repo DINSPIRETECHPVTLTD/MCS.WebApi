@@ -50,6 +50,8 @@ namespace MCS.WebApi.Models.DTOs
 
         public string? Occupation {  get; set; }
 
+        public string? Relationship { get; set; }
+
         public string? GuardianMiddleName { get; set; }
         // GuardianDOB already exists in your DTO
     }
