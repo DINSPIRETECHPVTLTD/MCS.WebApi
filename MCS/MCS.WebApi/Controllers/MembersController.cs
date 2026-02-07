@@ -92,7 +92,33 @@ namespace MCS.WebApi.Controllers
                     FirstName = u.FirstName,
                     MiddleName = u.MiddleName,
                     LastName = u.LastName,
-                   
+                    PhoneNumber = u.PhoneNumber,
+                    AltPhone = u.AltPhone,
+                    Address1 = u.Address1,
+                    Address2 = u.Address2,
+                    City = u.City,
+                    State = u.State,
+                    ZipCode = u.ZipCode,
+                    Aadhaar = u.Aadhaar,
+                    Occupation = u.Occupation,
+                    DOB = u.DOB,
+                    Age = u.Age,
+                    
+                    GuardianFirstName = u.GuardianFirstName,
+                    GuardianMiddleName = u.GuardianMiddleName,
+                    GuardianLastName = u.GuardianLastName,
+                    GuardianPhone = u.GuardianPhone,
+                    GuardianDOB = u.GuardianDOB,
+                    GuardianAge = u.GuardianAge,
+                    CenterId = u.CenterId,
+                    CenterName = u.Center.Name,
+                    POCId = u.POCId,
+                    POCName = u.POC.FirstName + " " + u.POC.LastName,
+                    CreatedBy = u.CreatedBy,
+                    CreatedAt = u.CreatedAt,
+                    ModifiedBy = u.ModifiedBy,
+                    ModifiedAt = u.ModifiedAt,
+                    IsDeleted = u.IsDeleted
                 })
                 .ToListAsync();
 
