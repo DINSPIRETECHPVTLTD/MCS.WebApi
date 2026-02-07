@@ -1,4 +1,5 @@
 using MCS.WebApi.Data;
+using MCS.WebApi.DTOs.Member;
 using MCS.WebApi.Models;
 using MCS.WebApi.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -60,7 +61,7 @@ namespace MCS.WebApi.Controllers
         //GET: api/Members/by Branch
         //No Direct Relation so using Centers(CenterId) -> BranchId
         [HttpGet("branch/{branchId}")]
-        public async Task<ActionResult<IEnumerable<Member>>> GetMembersByBranch(int branchId)
+        public async Task<ActionResult<IEnumerable<MemberDto>>> GetMembersByBranch(int branchId)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
@@ -85,6 +86,14 @@ namespace MCS.WebApi.Controllers
                 .Include(m => m.Center)
                 .Where(m => m.Center.BranchId == branchId)
                 .Include(m => m.POC)
+                .Select(u => new MemberDto
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    MiddleName = u.MiddleName,
+                    LastName = u.LastName,
+                   
+                })
                 .ToListAsync();
 
             return Ok(members);
