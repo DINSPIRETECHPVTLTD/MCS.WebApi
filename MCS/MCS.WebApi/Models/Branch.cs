@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
+    [Table("Branchs")]
     public class Branch
     {
         [Key]

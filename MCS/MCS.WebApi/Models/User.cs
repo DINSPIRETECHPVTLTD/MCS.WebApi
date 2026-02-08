@@ -16,6 +16,7 @@ namespace MCS.WebApi.Models
         Branch = 2
     }
 
+    [Table("Users")]
     public class User
     {
         [Key]

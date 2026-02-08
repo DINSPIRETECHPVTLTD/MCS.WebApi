@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
-    [Table("LoanPayments", Schema = "dinspire_mfdev")]
+    [Table("LoanPayments")]
     public class LoanPayment
     {
         [Key]

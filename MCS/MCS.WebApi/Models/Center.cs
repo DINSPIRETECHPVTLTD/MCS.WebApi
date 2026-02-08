@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace MCS.WebApi.Models
 {
-    [Table("Centers", Schema = "dinspire_mfdev")]
+    [Table("Centers")]
     public class Center
     {
         [Key]

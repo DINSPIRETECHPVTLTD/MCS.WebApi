@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MCS.WebApi.Models.DTOs
+namespace MCS.WebApi.DTOs.Member
 {
     public class CreateBranchDto
     {

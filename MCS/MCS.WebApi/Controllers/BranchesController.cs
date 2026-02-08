@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MCS.WebApi.Data;
 using MCS.WebApi.Models;
-using MCS.WebApi.Models.DTOs;
+using MCS.WebApi.DTOs.Member;
 
 namespace MCS.WebApi.Controllers
 {

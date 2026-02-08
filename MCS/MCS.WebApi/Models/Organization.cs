@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
+    [Table("Organizations")]
     public class Organization
     {
         [Key]
