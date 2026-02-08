@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
-    [Table("POCs", Schema = "dinspire_mfdev")]
     public class POC
     {
         [Key]
