@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MCS.WebApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260208180101_INIT")]
-    partial class INIT
+    [Migration("20260208185613_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
