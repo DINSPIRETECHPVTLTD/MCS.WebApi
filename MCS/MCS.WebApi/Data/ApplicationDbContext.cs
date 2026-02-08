@@ -17,6 +17,8 @@ namespace MCS.WebApi.Data
         public DbSet<Center> Centers { get; set; }
         public DbSet<POC> POCs { get; set; }
         public DbSet<Member> Members { get; set; }
+        public DbSet<Loan> Loans { get; set; }
+        public DbSet<LoanPayment> LoanPayments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -29,6 +31,8 @@ namespace MCS.WebApi.Data
             modelBuilder.Entity<Center>().HasQueryFilter(c => !c.IsDeleted);
             modelBuilder.Entity<POC>().HasQueryFilter(p => !p.IsDeleted);
             modelBuilder.Entity<Member>().HasQueryFilter(m => !m.IsDeleted);
+            modelBuilder.Entity<Loan>().HasQueryFilter(l => !l.IsDeleted);
+            modelBuilder.Entity<LoanPayment>().HasQueryFilter(lp => !lp.IsDeleted);
 
             // Configure User enum conversions (database stores as string, C# uses enum)
             // Role: 'Owner', 'BranchAdmin', 'Staff'
@@ -166,6 +170,44 @@ namespace MCS.WebApi.Data
                 .HasForeignKey(m => m.ModifiedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure Loan relationships
+            modelBuilder.Entity<Loan>()
+                .HasOne(l => l.Member)
+                .WithMany()
+                .HasForeignKey(l => l.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Loan>()
+                .HasOne(l => l.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(l => l.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Loan>()
+                .HasOne(l => l.ModifiedByUser)
+                .WithMany()
+                .HasForeignKey(l => l.ModifiedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure LoanPayment relationships
+            modelBuilder.Entity<LoanPayment>()
+                .HasOne(lp => lp.Loan)
+                .WithMany(l => l.LoanPayments)
+                .HasForeignKey(lp => lp.LoanId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LoanPayment>()
+                .HasOne(lp => lp.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(lp => lp.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LoanPayment>()
+                .HasOne(lp => lp.ModifiedByUser)
+                .WithMany()
+                .HasForeignKey(lp => lp.ModifiedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Indexes for performance
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
@@ -193,7 +235,9 @@ namespace MCS.WebApi.Data
                     entry.Entity is Branch || 
                     entry.Entity is Center || 
                     entry.Entity is POC || 
-                    entry.Entity is Member)
+                    entry.Entity is Member ||
+                    entry.Entity is Loan ||
+                    entry.Entity is LoanPayment)
                 {
                     switch (entry.State)
                     {
