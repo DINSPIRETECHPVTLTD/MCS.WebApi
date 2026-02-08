@@ -12,21 +12,40 @@ namespace MCS.WebApi.Models
         [Required]
         public int LoanId { get; set; }
 
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? SavingAmount { get; set; }
+
         [Required]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal PaymentAmount { get; set; }
+        public decimal PrincipalAmount { get; set; }
+
+        [Required]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal InterestAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PenaltyAmount { get; set; } = 0;
+
+        public DateTime? ActualPaymentDate { get; set; }
 
         [Required]
         public DateTime PaymentDate { get; set; }
 
+        [Required]
+        public int InstallmentNo { get; set; }
+
+        [Required]
+        [StringLength(20)]
+        public string Status { get; set; } = "Not Paid"; // Paid, Partial, Not Paid
+
         [StringLength(50)]
-        public string? PaymentMethod { get; set; } // Cash, Cheque, Online, etc.
+        public string? PaymentMode { get; set; } // Cash, Branch Bank Account, UPI, Other
 
         [StringLength(100)]
-        public string? TransactionReference { get; set; }
+        public string? ReceivedBy { get; set; }
 
         [StringLength(500)]
-        public string? Notes { get; set; }
+        public string? Comments { get; set; }
 
         [Required]
         public int CreatedBy { get; set; }
@@ -40,6 +59,10 @@ namespace MCS.WebApi.Models
 
         [Required]
         public bool IsDeleted { get; set; } = false;
+
+        // Computed property for total payment amount
+        [NotMapped]
+        public decimal TotalPaymentAmount => PrincipalAmount + InterestAmount + PenaltyAmount + (SavingAmount ?? 0);
 
         // Navigation properties
         [ForeignKey("LoanId")]

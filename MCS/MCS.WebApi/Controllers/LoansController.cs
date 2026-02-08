@@ -280,7 +280,7 @@ namespace MCS.WebApi.Controllers
                 ClosureDate = l.ClosureDate,
                 CreatedAt = l.CreatedAt,
                 TotalPayments = l.LoanPayments?.Count ?? 0,
-                TotalPaidAmount = l.LoanPayments?.Sum(p => p.PaymentAmount) ?? 0,
+                TotalPaidAmount = l.LoanPayments?.Sum(p => p.TotalPaymentAmount) ?? 0,
                 Member = new LoanMemberDto
                 {
                     Id = l.Member.Id,
