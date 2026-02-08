@@ -1,7 +1,6 @@
 using MCS.WebApi.Data;
 using MCS.WebApi.DTOs.Member;
 using MCS.WebApi.Models;
-using MCS.WebApi.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
