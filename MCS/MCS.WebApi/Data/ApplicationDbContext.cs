@@ -19,10 +19,36 @@ namespace MCS.WebApi.Data
         public DbSet<Member> Members { get; set; }
         public DbSet<Loan> Loans { get; set; }
         public DbSet<LoanPayment> LoanPayments { get; set; }
+        public DbSet<MasterLookup> MasterLookups { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<MasterLookup>(entity =>
+            {
+                entity.ToTable("MasterLookups");
+
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.LookupKey)
+                      .IsRequired()
+                      .HasMaxLength(50);
+
+                entity.Property(e => e.LookupCode)
+                      .IsRequired()
+                      .HasMaxLength(50);
+
+                entity.Property(e => e.LookupValue)
+                      .IsRequired()
+                      .HasMaxLength(100);
+
+                entity.Property(e => e.NumericValue)
+                      .HasPrecision(18, 2);
+
+                entity.HasIndex(e => new { e.LookupKey, e.LookupCode })
+                      .IsUnique();
+            });
 
             // Configure soft delete query filters
             modelBuilder.Entity<Organization>().HasQueryFilter(o => !o.IsDeleted);
