@@ -266,6 +266,9 @@ namespace MCS.WebApi.Migrations
                     State = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     ZipCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     CenterId = table.Column<int>(type: "int", nullable: false),
+                    CollectionDay = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CollectionFrequency = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CollectionBy = table.Column<int>(type: "int", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedBy = table.Column<int>(type: "int", nullable: true),
@@ -389,6 +392,11 @@ namespace MCS.WebApi.Migrations
                 name: "IX_POCs_CenterId",
                 table: "POCs",
                 column: "CenterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_POCs_CollectionBy",
+                table: "POCs",
+                column: "CollectionBy");
 
             migrationBuilder.CreateIndex(
                 name: "IX_POCs_CreatedBy",
@@ -545,14 +553,22 @@ namespace MCS.WebApi.Migrations
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Organizations_Users_ModifiedBy",
-                table: "Organizations",
-                column: "ModifiedBy",
-                principalTable: "Users",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
-        }
+                migrationBuilder.AddForeignKey(
+                    name: "FK_Organizations_Users_ModifiedBy",
+                    table: "Organizations",
+                    column: "ModifiedBy",
+                    principalTable: "Users",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Restrict);
+
+                migrationBuilder.AddForeignKey(
+                    name: "FK_POCs_Users_CollectionBy",
+                    table: "POCs",
+                    column: "CollectionBy",
+                    principalTable: "Users",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Restrict);
+            }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)

@@ -563,6 +563,17 @@ namespace MCS.WebApi.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("CollectionBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CollectionDay")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CollectionFrequency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -608,6 +619,8 @@ namespace MCS.WebApi.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CenterId");
+
+                    b.HasIndex("CollectionBy");
 
                     b.HasIndex("CreatedBy");
 
@@ -882,6 +895,12 @@ namespace MCS.WebApi.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("MCS.WebApi.Models.User", "CollectionByUser")
+                        .WithMany()
+                        .HasForeignKey("CollectionBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("MCS.WebApi.Models.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedBy")
@@ -894,6 +913,8 @@ namespace MCS.WebApi.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Center");
+
+                    b.Navigation("CollectionByUser");
 
                     b.Navigation("CreatedByUser");
 

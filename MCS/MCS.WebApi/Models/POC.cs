@@ -46,6 +46,15 @@ namespace MCS.WebApi.Models
         public int CenterId { get; set; }
 
         [Required]
+        public string CollectionDay { get; set; } = string.Empty;
+
+        [Required]
+        public string CollectionFrequency { get; set; } = string.Empty;
+
+        [Required]
+        public int CollectionBy { get; set; }
+
+        [Required]
         public int CreatedBy { get; set; }
 
         [Required]
@@ -61,6 +70,9 @@ namespace MCS.WebApi.Models
         // Navigation properties
         [ForeignKey("CenterId")]
         public virtual Center? Center { get; set; }
+
+        [ForeignKey("CollectionBy")]
+        public virtual User? CollectionByUser { get; set; }
 
         [ForeignKey("CreatedBy")]
         public virtual User? CreatedByUser { get; set; }

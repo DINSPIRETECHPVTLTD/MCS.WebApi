@@ -160,6 +160,12 @@ namespace MCS.WebApi.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<POC>()
+                .HasOne(p => p.CollectionByUser)
+                .WithMany()
+                .HasForeignKey(p => p.CollectionBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<POC>()
                 .HasOne(p => p.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(p => p.CreatedBy)
