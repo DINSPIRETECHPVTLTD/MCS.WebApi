@@ -266,7 +266,7 @@ namespace MCS.WebApi.Migrations
                     State = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     ZipCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     CenterId = table.Column<int>(type: "int", nullable: false),
-                    CollectionDay = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CollectionDay = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CollectionFrequency = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CollectionBy = table.Column<int>(type: "int", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),

@@ -45,8 +45,7 @@ namespace MCS.WebApi.Models
         [Required]
         public int CenterId { get; set; }
 
-        [Required]
-        public string CollectionDay { get; set; } = string.Empty;
+        public string? CollectionDay { get; set; }
 
         [Required]
         public string CollectionFrequency { get; set; } = string.Empty;

@@ -567,7 +567,6 @@ namespace MCS.WebApi.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("CollectionDay")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CollectionFrequency")

@@ -186,6 +186,9 @@ namespace MCS.WebApi.Controllers
                 State = dto.State,
                 ZipCode = dto.ZipCode,
                 CenterId = dto.CenterId,
+                CollectionDay = dto.CollectionDay,
+                CollectionFrequency = dto.CollectionFrequency,
+                CollectionBy = dto.CollectionBy,
                 CreatedBy = userId,
                 CreatedAt = DateTime.UtcNow
             };
@@ -269,6 +272,9 @@ namespace MCS.WebApi.Controllers
             existingPOC.State = poc.State;
             existingPOC.ZipCode = poc.ZipCode;
             existingPOC.CenterId = poc.CenterId;
+            existingPOC.CollectionDay = poc.CollectionDay;
+            existingPOC.CollectionFrequency = poc.CollectionFrequency;
+            existingPOC.CollectionBy = poc.CollectionBy;
             existingPOC.ModifiedBy = userId;
             existingPOC.ModifiedAt = DateTime.UtcNow;
 
