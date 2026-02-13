@@ -20,6 +20,7 @@ namespace MCS.WebApi.Data
         public DbSet<Loan> Loans { get; set; }
         public DbSet<LoanPayment> LoanPayments { get; set; }
         public DbSet<MasterLookup> MasterLookups { get; set; }
+        public DbSet<PaymentTerm>  PaymentTerms { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
