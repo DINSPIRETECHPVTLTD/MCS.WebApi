@@ -20,6 +20,7 @@ namespace MCS.WebApi.Data
         public DbSet<Loan> Loans { get; set; }
         public DbSet<LoanPayment> LoanPayments { get; set; }
         public DbSet<MasterLookup> MasterLookups { get; set; }
+        public DbSet<PaymentTerm> PaymentTerms { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -48,6 +49,17 @@ namespace MCS.WebApi.Data
 
                 entity.HasIndex(e => new { e.LookupKey, e.LookupCode })
                       .IsUnique();
+            });
+
+            // PaymentTerms - existing table in schema dinspire_sa
+            modelBuilder.Entity<PaymentTerm>(entity =>
+            {
+                entity.ToTable("PaymentTerms", "dinspire_sa");
+                entity.HasKey(e => e.PaymentTermId);
+                entity.Property(e => e.PaymentTermName).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.ProcessingFee).HasPrecision(18, 2);
+                entity.Property(e => e.RateOfInterest).HasPrecision(18, 2);
+                entity.Property(e => e.InsuranceFee).HasPrecision(18, 2);
             });
 
             // Configure soft delete query filters
