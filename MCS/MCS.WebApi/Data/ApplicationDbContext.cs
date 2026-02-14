@@ -20,7 +20,7 @@ namespace MCS.WebApi.Data
         public DbSet<Loan> Loans { get; set; }
         public DbSet<LoanPayment> LoanPayments { get; set; }
         public DbSet<MasterLookup> MasterLookups { get; set; }
-        public DbSet<PaymentTerm>  PaymentTerms { get; set; }
+        public DbSet<PaymentTerm> PaymentTerms { get; set; }
         public DbSet<Ledger> Ledgers { get; set; }
         public DbSet<LedgerTransaction> LedgerTransactions { get; set; }
         public DbSet<Investment> Investments { get; set; }
@@ -53,6 +53,17 @@ namespace MCS.WebApi.Data
 
                 entity.HasIndex(e => new { e.LookupKey, e.LookupCode })
                       .IsUnique();
+            });
+
+            modelBuilder.Entity<PaymentTerm>(entity =>
+            {
+                entity.ToTable("PaymentTerms");
+                entity.HasKey(e => e.PaymentTermId);
+                entity.Property(e => e.PaymentTermName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.PaymentType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.ProcessingFee).HasPrecision(18, 2);
+                entity.Property(e => e.RateOfInterest).HasPrecision(18, 2);
+                entity.Property(e => e.InsuranceFee).HasPrecision(18, 2);
             });
 
             // Configure soft delete query filters

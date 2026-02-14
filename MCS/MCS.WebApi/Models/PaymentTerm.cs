@@ -1,54 +1,48 @@
-﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
-  
+    /// <summary>
+    /// Maps to PaymentTerms table (default schema, same as Branch, Member, etc.).
+    /// Main branch migrations: PaymentTerm.cs creates table, PaymentTerm-AddedPaymentTypeColumn adds PaymentType.
+    /// </summary>
     [Table("PaymentTerms")]
     public class PaymentTerm
     {
-        [Key]
         [Column("PaymentTermID")]
         public int PaymentTermId { get; set; }
 
-        [Required]
-        [StringLength(50)]
+        [Column("PaymentTerm")]
+        public string PaymentTermName { get; set; } = null!;
+
         [Column("PaymentType")]
         public string PaymentType { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(100)]
-        [Column("PaymentTerm")]
-        public string PaymentTermCode { get; set; } = string.Empty;
 
         [Column("NoOfTerms")]
         public int NoOfTerms { get; set; }
 
-        [Column("ProcessingFee", TypeName = "decimal(18,2)")]
+        [Column("ProcessingFee")]
         public decimal? ProcessingFee { get; set; }
 
-        [Column("RateOfInterest", TypeName = "decimal(18,2)")]
+        [Column("RateOfInterest")]
         public decimal? RateOfInterest { get; set; }
 
-        [Column("InsuranceFee", TypeName = "decimal(18,2)")]
+        [Column("InsuranceFee")]
         public decimal? InsuranceFee { get; set; }
 
-        [Required]
-        [Column("CreatedBy", TypeName = "int")]
+        [Column("CreatedBy")]
         public int CreatedBy { get; set; }
 
-        [Required]
-        [Column("CreatedAt", TypeName = "datetime2")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Column("CreatedAt")]
+        public DateTime CreatedAt { get; set; }
 
-        [Column("ModifiedBy", TypeName = "int")]
+        [Column("ModifiedBy")]
         public int? ModifiedBy { get; set; }
 
-        [Column("ModifiedAt", TypeName = "datetime2")]
+        [Column("ModifiedAt")]
         public DateTime? ModifiedAt { get; set; }
 
-        [Required]
-        public bool IsDeleted { get; set; } = false;
+        [Column("IsDeleted")]
+        public bool IsDeleted { get; set; }
     }
 }
-
