@@ -21,6 +21,10 @@ namespace MCS.WebApi.Data
         public DbSet<LoanPayment> LoanPayments { get; set; }
         public DbSet<MasterLookup> MasterLookups { get; set; }
         public DbSet<PaymentTerm>  PaymentTerms { get; set; }
+        public DbSet<Ledger> Ledgers { get; set; }
+        public DbSet<LedgerTransaction> LedgerTransactions { get; set; }
+        public DbSet<Investment> Investments { get; set; }
+        public DbSet<LoanScheduler> LoanSchedulers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -233,6 +237,58 @@ namespace MCS.WebApi.Data
                 .HasOne(lp => lp.ModifiedByUser)
                 .WithMany()
                 .HasForeignKey(lp => lp.ModifiedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Ledger relationships
+            modelBuilder.Entity<Ledger>()
+                .HasOne(l => l.User)
+                .WithMany()
+                .HasForeignKey(l => l.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure LedgerTransaction relationships
+            modelBuilder.Entity<LedgerTransaction>()
+                .HasOne(lt => lt.FromUser)
+                .WithMany()
+                .HasForeignKey(lt => lt.FromUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LedgerTransaction>()
+                .HasOne(lt => lt.ToUser)
+                .WithMany()
+                .HasForeignKey(lt => lt.ToUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LedgerTransaction>()
+                .HasOne(lt => lt.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(lt => lt.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Investment relationships
+            modelBuilder.Entity<Investment>()
+                .HasOne(i => i.User)
+                .WithMany()
+                .HasForeignKey(i => i.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Investment>()
+                .HasOne(i => i.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(i => i.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure LoanScheduler relationships
+            modelBuilder.Entity<LoanScheduler>()
+                .HasOne(ls => ls.Loan)
+                .WithMany()
+                .HasForeignKey(ls => ls.LoanId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<LoanScheduler>()
+                .HasOne(ls => ls.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(ls => ls.CreatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Indexes for performance
