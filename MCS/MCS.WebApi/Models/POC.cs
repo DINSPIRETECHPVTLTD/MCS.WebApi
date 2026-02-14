@@ -48,6 +48,14 @@ namespace MCS.WebApi.Models
         [Required]
         public int CreatedBy { get; set; }
 
+        public string? CollectionDay { get; set; }
+
+        [Required]
+        public string CollectionFrequency { get; set; } = string.Empty;
+
+        [Required]
+        public int CollectionBy { get; set; }
+
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -61,6 +69,9 @@ namespace MCS.WebApi.Models
         // Navigation properties
         [ForeignKey("CenterId")]
         public virtual Center? Center { get; set; }
+
+        [ForeignKey("CollectionBy")]
+        public virtual User? CollectionByUser { get; set; }
 
         [ForeignKey("CreatedBy")]
         public virtual User? CreatedByUser { get; set; }
