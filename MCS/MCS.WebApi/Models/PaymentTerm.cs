@@ -12,6 +12,11 @@ namespace MCS.WebApi.Models
         public int PaymentTermId { get; set; }
 
         [Required]
+        [StringLength(50)]
+        [Column("PaymentType")]
+        public string PaymentType { get; set; } = string.Empty;
+
+        [Required]
         [StringLength(100)]
         [Column("PaymentTerm")]
         public string PaymentTermCode { get; set; } = string.Empty;
