@@ -48,9 +48,11 @@ namespace MCS.WebApi.Models
         [Required]
         public int CreatedBy { get; set; }
 
+        [StringLength(20)]
         public string? CollectionDay { get; set; }
 
         [Required]
+        [StringLength(20)]
         public string CollectionFrequency { get; set; } = string.Empty;
 
         [Required]

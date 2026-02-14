@@ -20,13 +20,15 @@ namespace MCS.WebApi.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "CollectionDay",
                 table: "POCs",
-                type: "nvarchar(max)",
+                type: "nvarchar(20)",
+                maxLength: 20,
                 nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "CollectionFrequency",
                 table: "POCs",
-                type: "nvarchar(max)",
+                type: "nvarchar(20)",
+                maxLength: 20,
                 nullable: false,
                 defaultValue: "");
 
