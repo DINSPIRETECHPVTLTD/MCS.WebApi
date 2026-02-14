@@ -39,5 +39,13 @@ namespace MCS.WebApi.DTOs
 
         [Required]
         public int CenterId { get; set; }
+
+        public string? CollectionDay { get; set; }
+
+        [Required]
+        public string CollectionFrequency { get; set; } = string.Empty;
+
+        [Required]
+        public int CollectionBy { get; set; }
     }
 }
