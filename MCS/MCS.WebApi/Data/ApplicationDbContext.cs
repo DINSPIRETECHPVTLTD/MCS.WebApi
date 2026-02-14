@@ -55,12 +55,12 @@ namespace MCS.WebApi.Data
                       .IsUnique();
             });
 
-            // PaymentTerms - existing table in schema dinspire_sa
             modelBuilder.Entity<PaymentTerm>(entity =>
             {
-                entity.ToTable("PaymentTerms", "dinspire_sa");
+                entity.ToTable("PaymentTerms");
                 entity.HasKey(e => e.PaymentTermId);
-                entity.Property(e => e.PaymentTermName).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.PaymentTermName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.PaymentType).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.ProcessingFee).HasPrecision(18, 2);
                 entity.Property(e => e.RateOfInterest).HasPrecision(18, 2);
                 entity.Property(e => e.InsuranceFee).HasPrecision(18, 2);

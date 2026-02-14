@@ -777,7 +777,7 @@ namespace MCS.WebApi.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
                     b.Property<decimal?>("InsuranceFee")
@@ -796,6 +796,17 @@ namespace MCS.WebApi.Migrations
                     b.Property<int>("NoOfTerms")
                         .HasColumnType("int");
 
+                    b.Property<string>("PaymentTermName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("PaymentTerm");
+
+                    b.Property<string>("PaymentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<decimal?>("ProcessingFee")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -804,15 +815,9 @@ namespace MCS.WebApi.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("PaymentTermName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("PaymentTerm");
-
                     b.HasKey("PaymentTermId");
 
-                    b.ToTable("PaymentTerms", "dinspire_sa");
+                    b.ToTable("PaymentTerms", (string)null);
                 });
 
             modelBuilder.Entity("MCS.WebApi.Models.User", b =>

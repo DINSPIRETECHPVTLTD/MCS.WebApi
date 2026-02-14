@@ -5,7 +5,8 @@ namespace MCS.WebApi.DTOs
     /// </summary>
     public class CreatePaymentTermDto
     {
-        public string PaymentTerm { get; set; } = string.Empty; // "Daily", "Weekly", "Monthly"
+        public string PaymentTerm { get; set; } = string.Empty;
+        public string PaymentType { get; set; } = string.Empty;
         public int NoOfTerms { get; set; }
         public decimal? ProcessingFee { get; set; }
         public decimal? RateOfInterest { get; set; }
@@ -19,6 +20,7 @@ namespace MCS.WebApi.DTOs
     {
         public int PaymentTermId { get; set; }
         public string PaymentTerm { get; set; } = string.Empty;
+        public string PaymentType { get; set; } = string.Empty;
         public int NoOfTerms { get; set; }
         public decimal? ProcessingFee { get; set; }
         public decimal? RateOfInterest { get; set; }

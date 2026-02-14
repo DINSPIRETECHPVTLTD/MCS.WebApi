@@ -8,9 +8,6 @@ using System.Security.Claims;
 
 namespace MCS.WebApi.Controllers
 {
-    /// <summary>
-    /// Table: [dinspire_sa].[PaymentTerms]
-    /// </summary>
     [ApiController]
     [Route("api/paymentterms")]
     [Authorize]
@@ -73,6 +70,7 @@ namespace MCS.WebApi.Controllers
             var entity = new PaymentTerm
             {
                 PaymentTermName = dto.PaymentTerm ?? "",
+                PaymentType = dto.PaymentType ?? "",
                 NoOfTerms = dto.NoOfTerms,
                 ProcessingFee = dto.ProcessingFee,
                 RateOfInterest = dto.RateOfInterest,
@@ -108,6 +106,7 @@ namespace MCS.WebApi.Controllers
                 return NotFound(new { message = "Cannot update a deleted payment term." });
 
             entity.PaymentTermName = dto.PaymentTerm ?? entity.PaymentTermName;
+            entity.PaymentType = dto.PaymentType ?? entity.PaymentType;
             entity.NoOfTerms = dto.NoOfTerms;
             entity.ProcessingFee = dto.ProcessingFee;
             entity.RateOfInterest = dto.RateOfInterest;
@@ -146,6 +145,7 @@ namespace MCS.WebApi.Controllers
             {
                 PaymentTermId = e.PaymentTermId,
                 PaymentTerm = e.PaymentTermName,
+                PaymentType = e.PaymentType,
                 NoOfTerms = e.NoOfTerms,
                 ProcessingFee = e.ProcessingFee,
                 RateOfInterest = e.RateOfInterest,

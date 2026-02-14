@@ -3,16 +3,20 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace MCS.WebApi.Models
 {
     /// <summary>
-    /// Maps to [dinspire_sa].[PaymentTerms]
+    /// Maps to PaymentTerms table (default schema, same as Branch, Member, etc.).
+    /// Main branch migrations: PaymentTerm.cs creates table, PaymentTerm-AddedPaymentTypeColumn adds PaymentType.
     /// </summary>
-    [Table("PaymentTerms", Schema = "dinspire_sa")]
+    [Table("PaymentTerms")]
     public class PaymentTerm
     {
         [Column("PaymentTermID")]
         public int PaymentTermId { get; set; }
 
         [Column("PaymentTerm")]
-        public string PaymentTermName { get; set; } = null!; // "Daily", "Weekly", "Monthly"
+        public string PaymentTermName { get; set; } = null!;
+
+        [Column("PaymentType")]
+        public string PaymentType { get; set; } = string.Empty;
 
         [Column("NoOfTerms")]
         public int NoOfTerms { get; set; }
@@ -27,7 +31,7 @@ namespace MCS.WebApi.Models
         public decimal? InsuranceFee { get; set; }
 
         [Column("CreatedBy")]
-        public int? CreatedBy { get; set; }
+        public int CreatedBy { get; set; }
 
         [Column("CreatedAt")]
         public DateTime CreatedAt { get; set; }
