@@ -14,10 +14,14 @@ namespace MCS.WebApi.Controllers
     public class LoansController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<LoansController> _logger;
 
-        public LoansController(ApplicationDbContext context)
+        public LoansController(ApplicationDbContext context, IHttpClientFactory httpClientFactory, ILogger<LoansController> logger)
         {
             _context = context;
+            _httpClientFactory = httpClientFactory;
+            _logger = logger;
         }
 
         // POST: api/Loans
@@ -86,6 +90,52 @@ namespace MCS.WebApi.Controllers
 
             _context.Loans.Add(loan);
             await _context.SaveChangesAsync();
+
+            // Automatically generate loan schedulers by calling the LoanSchedulers API
+            if (loan.NoOfTerms > 0 && loan.CollectionStartDate.HasValue && !string.IsNullOrEmpty(loan.CollectionTerm))
+            {
+                try
+                {
+                    var httpClient = _httpClientFactory.CreateClient();
+                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                    var generateUrl = $"{baseUrl}/api/LoanSchedulers/generate/{loan.Id}";
+
+                    _logger.LogInformation($"Attempting to generate loan schedulers for loan {loan.Id} at {generateUrl}");
+
+                    // Copy the authorization token from the current request
+                    if (Request.Headers.TryGetValue("Authorization", out var authHeader))
+                    {
+                        httpClient.DefaultRequestHeaders.Add("Authorization", authHeader.ToString());
+                        _logger.LogInformation("Authorization header added to request");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("No Authorization header found in request");
+                    }
+
+                    var response = await httpClient.PostAsync(generateUrl, null);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        // Log the error but don't fail the loan creation
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        _logger.LogError($"Failed to generate loan schedulers for loan {loan.Id}. Status: {response.StatusCode}, Error: {errorContent}");
+                    }
+                    else
+                    {
+                        _logger.LogInformation($"Successfully generated loan schedulers for loan {loan.Id}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log the error but don't fail the loan creation
+                    _logger.LogError(ex, $"Error calling LoanSchedulers API for loan {loan.Id}: {ex.Message}");
+                }
+            }
+            else
+            {
+                _logger.LogWarning($"Loan {loan.Id} does not meet requirements for schedule generation. NoOfTerms: {loan.NoOfTerms}, CollectionStartDate: {loan.CollectionStartDate}, CollectionTerm: {loan.CollectionTerm}");
+            }
 
             return CreatedAtAction("GetLoan", new { id = loan.Id }, loan);
         }
@@ -288,7 +338,7 @@ namespace MCS.WebApi.Controllers
                 IsDeleted = l.IsDeleted
             }).ToList();
 
-            return Ok(loanDtos);
-        }
-    }
-}
+                                    return Ok(loanDtos);
+                                }
+                            }
+                        }
