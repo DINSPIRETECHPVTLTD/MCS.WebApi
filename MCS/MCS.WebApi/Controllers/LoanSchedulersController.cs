@@ -1,5 +1,6 @@
 using MCS.WebApi.Data;
 using MCS.WebApi.Models;
+using MCS.WebApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace MCS.WebApi.Controllers
     public class LoanSchedulersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly LoanSchedulerService _loanSchedulerService;
 
-        public LoanSchedulersController(ApplicationDbContext context)
+        public LoanSchedulersController(ApplicationDbContext context, LoanSchedulerService loanSchedulerService)
         {
             _context = context;
+            _loanSchedulerService = loanSchedulerService;
         }
 
         // POST: api/LoanSchedulers/generate/{loanId}
@@ -61,81 +64,26 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
-            // Check if schedules already exist for this loan
-            var existingSchedules = await _context.LoanSchedulers
-                .Where(ls => ls.LoanId == loanId)
-                .ToListAsync();
+                // Check if schedules already exist for this loan
+                var existingSchedules = await _context.LoanSchedulers
+                    .Where(ls => ls.LoanId == loanId)
+                    .ToListAsync();
 
-            if (existingSchedules.Any())
-            {
-                return BadRequest("EMI schedule already exists for this loan. Delete existing schedules first.");
-            }
-
-                // Validate loan has required data
-                if (loan.NoOfTerms <= 0)
+                if (existingSchedules.Any())
                 {
-                    return BadRequest("Invalid number of terms");
+                    return BadRequest("EMI schedule already exists for this loan. Delete existing schedules first.");
                 }
 
-                if (loan.CollectionStartDate == null)
+                // Use the service to generate schedules
+                try
                 {
-                    return BadRequest("Collection start date is required");
+                    var schedules = await _loanSchedulerService.GenerateEmiScheduleAsync(loanId, userId);
+                    return Ok(schedules);
                 }
-
-                if (string.IsNullOrEmpty(loan.CollectionTerm))
+                catch (InvalidOperationException ex)
                 {
-                    return BadRequest("Collection term is required");
+                    return BadRequest(ex.Message);
                 }
-
-                // Calculate payment amounts
-                decimal totalLoanAmount = loan.LoanAmount + loan.InterestAmount;
-                decimal principalPerInstallment = loan.LoanAmount / loan.NoOfTerms;
-                decimal interestPerInstallment = loan.InterestAmount / loan.NoOfTerms;
-                decimal paymentPerInstallment = totalLoanAmount / loan.NoOfTerms;
-
-                var schedules = new List<LoanScheduler>();
-                DateTime currentDate = loan.CollectionStartDate.Value;
-
-                for (int i = 1; i <= loan.NoOfTerms; i++)
-                {
-                    var schedule = new LoanScheduler
-                    {
-                        LoanId = loanId,
-                        ScheduleDate = currentDate,
-                        PaymentDate = currentDate,
-                        PaymentAmount = Math.Round(paymentPerInstallment, 2),
-                        SavingAmount = loan.IsSavingEnabled ? Math.Round(loan.SavingAmount / loan.NoOfTerms, 2) : 0,
-                        PrincipalAmount = Math.Round(principalPerInstallment, 2),
-                        InterestAmount = Math.Round(interestPerInstallment, 2),
-                        CollectedBy = userId,
-                        InstallmentNo = i,
-                        Status = "Not Paid",
-                        CreatedBy = userId,
-                        CreatedDate = DateTime.UtcNow
-                    };
-
-                    schedules.Add(schedule);
-
-                    // Calculate next payment date based on collection term
-                    currentDate = CalculateNextPaymentDate(currentDate, loan.CollectionTerm);
-                }
-
-                // Adjust last installment to account for rounding differences
-                if (schedules.Any())
-                {
-                    var lastSchedule = schedules.Last();
-                    var totalScheduledPrincipal = schedules.Sum(s => s.PrincipalAmount);
-                    var totalScheduledInterest = schedules.Sum(s => s.InterestAmount);
-
-                    lastSchedule.PrincipalAmount += loan.LoanAmount - totalScheduledPrincipal;
-                    lastSchedule.InterestAmount += loan.InterestAmount - totalScheduledInterest;
-                    lastSchedule.PaymentAmount = lastSchedule.PrincipalAmount + lastSchedule.InterestAmount;
-                }
-
-                _context.LoanSchedulers.AddRange(schedules);
-                await _context.SaveChangesAsync();
-
-                return Ok(schedules);
             }
 
         // GET: api/LoanSchedulers/loan/{loanId}
@@ -289,26 +237,10 @@ namespace MCS.WebApi.Controllers
                             return BadRequest("Cannot delete schedules with payments already made");
                         }
 
-                        _context.LoanSchedulers.RemoveRange(schedules);
-                        await _context.SaveChangesAsync();
+                                    _context.LoanSchedulers.RemoveRange(schedules);
+                                    await _context.SaveChangesAsync();
 
-                        return NoContent();
-                    }
-
-                    // Helper method to calculate next payment date
-                    private DateTime CalculateNextPaymentDate(DateTime currentDate, string collectionTerm)
-                    {
-                        return collectionTerm.ToLower() switch
-                        {
-                            "daily" => currentDate.AddDays(1),
-                            "weekly" => currentDate.AddDays(7),
-                            "biweekly" or "bi-weekly" => currentDate.AddDays(14),
-                            "monthly" => currentDate.AddMonths(1),
-                            "quarterly" => currentDate.AddMonths(3),
-                            "half-yearly" or "semi-annual" => currentDate.AddMonths(6),
-                            "yearly" or "annual" => currentDate.AddYears(1),
-                            _ => currentDate.AddDays(7) // Default to weekly
-                        };
-                    }
-                }
-            }
+                                    return NoContent();
+                                }
+                            }
+                        }

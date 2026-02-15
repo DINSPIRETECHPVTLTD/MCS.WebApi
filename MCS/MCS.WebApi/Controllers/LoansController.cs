@@ -1,6 +1,7 @@
 using MCS.WebApi.Data;
 using MCS.WebApi.DTOs.Loan;
 using MCS.WebApi.Models;
+using MCS.WebApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,13 +15,13 @@ namespace MCS.WebApi.Controllers
     public class LoansController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly LoanSchedulerService _loanSchedulerService;
         private readonly ILogger<LoansController> _logger;
 
-        public LoansController(ApplicationDbContext context, IHttpClientFactory httpClientFactory, ILogger<LoansController> logger)
+        public LoansController(ApplicationDbContext context, LoanSchedulerService loanSchedulerService, ILogger<LoansController> logger)
         {
             _context = context;
-            _httpClientFactory = httpClientFactory;
+            _loanSchedulerService = loanSchedulerService;
             _logger = logger;
         }
 
@@ -91,45 +92,20 @@ namespace MCS.WebApi.Controllers
             _context.Loans.Add(loan);
             await _context.SaveChangesAsync();
 
-            // Automatically generate loan schedulers by calling the LoanSchedulers API
+            // Automatically generate loan schedulers using the service
             if (loan.NoOfTerms > 0 && loan.CollectionStartDate.HasValue && !string.IsNullOrEmpty(loan.CollectionTerm))
             {
                 try
                 {
-                    var httpClient = _httpClientFactory.CreateClient();
-                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                    var generateUrl = $"{baseUrl}/api/LoanSchedulers/generate/{loan.Id}";
-
-                    _logger.LogInformation($"Attempting to generate loan schedulers for loan {loan.Id} at {generateUrl}");
-
-                    // Copy the authorization token from the current request
-                    if (Request.Headers.TryGetValue("Authorization", out var authHeader))
-                    {
-                        httpClient.DefaultRequestHeaders.Add("Authorization", authHeader.ToString());
-                        _logger.LogInformation("Authorization header added to request");
-                    }
-                    else
-                    {
-                        _logger.LogWarning("No Authorization header found in request");
-                    }
-
-                    var response = await httpClient.PostAsync(generateUrl, null);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        // Log the error but don't fail the loan creation
-                        var errorContent = await response.Content.ReadAsStringAsync();
-                        _logger.LogError($"Failed to generate loan schedulers for loan {loan.Id}. Status: {response.StatusCode}, Error: {errorContent}");
-                    }
-                    else
-                    {
-                        _logger.LogInformation($"Successfully generated loan schedulers for loan {loan.Id}");
-                    }
+                    _logger.LogInformation($"Generating loan schedulers for loan {loan.Id}");
+                    await _loanSchedulerService.GenerateEmiScheduleAsync(loan.Id, userId);
+                    _logger.LogInformation($"Successfully generated loan schedulers for loan {loan.Id}");
                 }
                 catch (Exception ex)
                 {
                     // Log the error but don't fail the loan creation
-                    _logger.LogError(ex, $"Error calling LoanSchedulers API for loan {loan.Id}: {ex.Message}");
+                    // The schedules can be generated manually later via the API endpoint
+                    _logger.LogError(ex, $"Error generating loan schedulers for loan {loan.Id}: {ex.Message}");
                 }
             }
             else
@@ -314,31 +290,31 @@ namespace MCS.WebApi.Controllers
                 .Include(l => l.LoanSchedulers)
                 .ToListAsync();
 
-            var loanDtos = loans.Select(l => new LoanDto
-            {
-                Id = l.Id,
-                MemberId = l.MemberId,
-                LoanAmount = l.LoanAmount,
-                InterestAmount = l.InterestAmount,
-                ProcessingFee = l.ProcessingFee,
-                InsuranceFee = l.InsuranceFee,
-                IsSavingEnabled = l.IsSavingEnabled,
-                SavingAmount = l.SavingAmount,
-                TotalAmount = l.TotalAmount,
-                Status = l.Status,
-                DisbursementDate = l.DisbursementDate,
-                ClosureDate = l.ClosureDate,
-                CollectionStartDate = l.CollectionStartDate,
-                CollectionTerm = l.CollectionTerm,
-                NoOfTerms = l.NoOfTerms,
-                CreatedBy = l.CreatedBy,
-                CreatedAt = l.CreatedAt,
-                ModifiedBy = l.ModifiedBy,
-                ModifiedAt = l.ModifiedAt,
-                IsDeleted = l.IsDeleted
-            }).ToList();
+                        var loanDtos = loans.Select(l => new LoanDto
+                        {
+                            Id = l.Id,
+                            MemberId = l.MemberId,
+                            LoanAmount = l.LoanAmount,
+                            InterestAmount = l.InterestAmount,
+                            ProcessingFee = l.ProcessingFee,
+                            InsuranceFee = l.InsuranceFee,
+                            IsSavingEnabled = l.IsSavingEnabled,
+                            SavingAmount = l.SavingAmount,
+                            TotalAmount = l.TotalAmount,
+                            Status = l.Status,
+                            DisbursementDate = l.DisbursementDate,
+                            ClosureDate = l.ClosureDate,
+                            CollectionStartDate = l.CollectionStartDate,
+                            CollectionTerm = l.CollectionTerm,
+                            NoOfTerms = l.NoOfTerms,
+                            CreatedBy = l.CreatedBy,
+                            CreatedAt = l.CreatedAt,
+                            ModifiedBy = l.ModifiedBy,
+                            ModifiedAt = l.ModifiedAt,
+                            IsDeleted = l.IsDeleted
+                        }).ToList();
 
-                                    return Ok(loanDtos);
-                                }
-                            }
-                        }
+                        return Ok(loanDtos);
+                    }
+                }
+            }

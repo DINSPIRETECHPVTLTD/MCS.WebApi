@@ -61,6 +61,7 @@ builder.Services.AddCors(options =>
 
 // Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<LoanSchedulerService>();
 builder.Services.AddHttpClient(); // For inter-controller API calls
 
 var app = builder.Build();
