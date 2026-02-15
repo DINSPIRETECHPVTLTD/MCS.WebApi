@@ -9,9 +9,9 @@ namespace MCS.WebApi.Models
         [Key]
         public int Id { get; set; }
 
-        public int? FromUserId { get; set; }
+        public int? PaidFromUserId { get; set; }
 
-        public int? ToUserId { get; set; }
+        public int? PaidToUserId { get; set; }
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]
