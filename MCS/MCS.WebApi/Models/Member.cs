@@ -106,5 +106,7 @@ namespace MCS.WebApi.Models
 
         [ForeignKey("ModifiedBy")]
         public virtual User? ModifiedByUser { get; set; }
+
+        public virtual ICollection<MemberMembershipFee> MemberMembershipFees { get; set; } = new List<MemberMembershipFee>();
     }
 }
