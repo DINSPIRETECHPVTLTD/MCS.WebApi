@@ -33,17 +33,17 @@ namespace MCS.WebApi.Models
         [StringLength(100)]
         public int? ReferenceId { get; set; }
 
-        [StringLength(500)]
-        public string? Comments { get; set; }
+                [StringLength(500)]
+                public string? Comments { get; set; }
 
-        // Navigation properties
-        [ForeignKey("FromUserId")]
-        public virtual User? FromUser { get; set; } = null!;
+                // Navigation properties
+                [ForeignKey("PaidFromUserId")]
+                public virtual User? FromUser { get; set; }
 
-        [ForeignKey("ToUserId")]
-        public virtual User? ToUser { get; set; } = null!;
+                [ForeignKey("PaidToUserId")]
+                public virtual User? ToUser { get; set; }
 
-        [ForeignKey("CreatedBy")]
-        public virtual User? CreatedByUser { get; set; }
-    }
-}
+                [ForeignKey("CreatedBy")]
+                public virtual User? CreatedByUser { get; set; }
+            }
+        }

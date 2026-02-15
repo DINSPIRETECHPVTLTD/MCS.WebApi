@@ -345,7 +345,6 @@ namespace MCS.WebApi.Data
                     entry.Entity is POC || 
                     entry.Entity is Member ||
                     entry.Entity is Loan ||
-                    entry.Entity is LoanScheduler ||
                     entry.Entity is MemberMembershipFee)
                 {
                     switch (entry.State)
@@ -366,6 +365,20 @@ namespace MCS.WebApi.Data
                                 entry.Property("IsDeleted").IsModified = false;
                             }
                             entry.Property("ModifiedAt").CurrentValue = DateTime.UtcNow;
+                            break;
+                    }
+                }
+                // Handle LoanScheduler separately (no IsDeleted field)
+                else if (entry.Entity is LoanScheduler)
+                {
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            if (entry.Property("CreatedDate").CurrentValue == null || 
+                                (entry.Property("CreatedDate").CurrentValue is DateTime date && date == default(DateTime)))
+                            {
+                                entry.Property("CreatedDate").CurrentValue = DateTime.UtcNow;
+                            }
                             break;
                     }
                 }
