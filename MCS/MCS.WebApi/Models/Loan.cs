@@ -48,6 +48,13 @@ namespace MCS.WebApi.Models
         public DateTime? CollectionStartDate { get; set; }
 
         [Required]
+        [StringLength(50)]
+        public string CollectionTerm { get; set; } = string.Empty;
+
+        [Required]
+        public int NoOfTerms { get; set; }
+
+        [Required]
         public int CreatedBy { get; set; }
 
         [Required]
@@ -70,6 +77,6 @@ namespace MCS.WebApi.Models
         [ForeignKey("ModifiedBy")]
         public virtual User? ModifiedByUser { get; set; }
 
-        public virtual ICollection<LoanPayment>? LoanPayments { get; set; }
+        public virtual ICollection<LoanScheduler>? LoanSchedulers { get; set; }
     }
 }

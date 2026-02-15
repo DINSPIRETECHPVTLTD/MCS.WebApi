@@ -209,7 +209,7 @@ namespace MCS.WebApi.Controllers
 
             var loans = await _context.Loans
                 .Where(l => l.MemberId == memberId)
-                .Include(l => l.LoanPayments)
+                .Include(l => l.LoanSchedulers)
                 .ToListAsync();
 
             return Ok(loans);
@@ -257,7 +257,7 @@ namespace MCS.WebApi.Controllers
                 .ThenInclude(m => m.Center)
                 .ThenInclude(c => c.Branch)
                 .Where(l => l.Member.Center.BranchId == branchId)
-                .Include(l => l.LoanPayments)
+                .Include(l => l.LoanSchedulers)
                 .ToListAsync();
 
             var loanDtos = loans.Select(l => new LoanDto
@@ -275,8 +275,8 @@ namespace MCS.WebApi.Controllers
                 DisbursementDate = l.DisbursementDate,
                 ClosureDate = l.ClosureDate,
                 CreatedAt = l.CreatedAt,
-                TotalPayments = l.LoanPayments?.Count ?? 0,
-                TotalPaidAmount = l.LoanPayments?.Sum(p => p.TotalPaymentAmount) ?? 0,
+                TotalPayments = 0, //TODO: Calculate total payments from LoanSchedulers
+                TotalPaidAmount = l.LoanSchedulers?.Sum(p => p.PaymentAmount) ?? 0,
                 Member = new LoanMemberDto
                 {
                     Id = l.Member.Id,
