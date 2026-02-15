@@ -268,13 +268,13 @@ namespace MCS.WebApi.Data
             modelBuilder.Entity<LedgerTransaction>()
                 .HasOne(lt => lt.FromUser)
                 .WithMany()
-                .HasForeignKey(lt => lt.FromUserId)
+                .HasForeignKey(lt => lt.PaidFromUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<LedgerTransaction>()
                 .HasOne(lt => lt.ToUser)
                 .WithMany()
-                .HasForeignKey(lt => lt.ToUserId)
+                .HasForeignKey(lt => lt.PaidToUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<LedgerTransaction>()
