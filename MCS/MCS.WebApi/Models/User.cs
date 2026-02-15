@@ -7,7 +7,8 @@ namespace MCS.WebApi.Models
     {
         Owner = 1,
         BranchAdmin = 2,
-        Staff = 3
+        Staff = 3,
+        Investor = 4
     }
 
     public enum UserLevel
