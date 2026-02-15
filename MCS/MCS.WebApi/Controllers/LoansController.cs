@@ -66,7 +66,6 @@ namespace MCS.WebApi.Controllers
 
             var loan = new Loan
             {
-                LoanCode = dto.LoanCode,
                 MemberId = dto.MemberId,
                 LoanAmount = dto.LoanAmount,
                 InterestAmount = dto.InterestAmount,
@@ -75,7 +74,6 @@ namespace MCS.WebApi.Controllers
                 IsSavingEnabled = dto.IsSavingEnabled,
                 SavingAmount = dto.SavingAmount,
                 TotalAmount = totalAmount,
-                OutstandingAmount = totalAmount,
                 Status = "Active",
                 DisbursementDate = DateTime.UtcNow,
                 CreatedBy = userId,
@@ -265,7 +263,6 @@ namespace MCS.WebApi.Controllers
             var loanDtos = loans.Select(l => new LoanDto
             {
                 Id = l.Id,
-                LoanCode = l.LoanCode,
                 MemberId = l.MemberId,
                 LoanAmount = l.LoanAmount,
                 InterestAmount = l.InterestAmount,
@@ -274,7 +271,6 @@ namespace MCS.WebApi.Controllers
                 IsSavingEnabled = l.IsSavingEnabled,
                 SavingAmount = l.SavingAmount,
                 TotalAmount = l.TotalAmount,
-                OutstandingAmount = l.OutstandingAmount,
                 Status = l.Status,
                 DisbursementDate = l.DisbursementDate,
                 ClosureDate = l.ClosureDate,

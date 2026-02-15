@@ -10,10 +10,6 @@ namespace MCS.WebApi.Models
         public int Id { get; set; }
 
         [Required]
-        [StringLength(50)]
-        public string LoanCode { get; set; } = string.Empty;
-
-        [Required]
         public int MemberId { get; set; }
 
         [Required]
@@ -42,15 +38,14 @@ namespace MCS.WebApi.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal OutstandingAmount { get; set; }
-
         [StringLength(20)]
         public string Status { get; set; } = "Active"; // Active, Closed, Defaulted
 
         public DateTime? DisbursementDate { get; set; }
 
         public DateTime? ClosureDate { get; set; }
+
+        public DateTime? CollectionStartDate { get; set; }
 
         [Required]
         public int CreatedBy { get; set; }
