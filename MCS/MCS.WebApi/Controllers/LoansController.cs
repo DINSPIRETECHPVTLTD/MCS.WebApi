@@ -72,61 +72,73 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
+            // Check ledger balance before disbursing loan
+            var currentBalance = await _ledgerTransactionService.GetBalanceAsync(userId);
+            var requiredAmount = dto.LoanAmount; // Amount needed to disburse the loan
+
+            if (currentBalance < requiredAmount)
+            {
+                return BadRequest(new 
+                { 
+                    error = "Insufficient Balance",
+                    message = $"Insufficient ledger balance to disburse loan. Available: {currentBalance:N2}, Required: {requiredAmount:N2}, Shortfall: {(requiredAmount - currentBalance):N2}",
+                    availableBalance = currentBalance,
+                    requiredAmount = requiredAmount,
+                    shortfall = requiredAmount - currentBalance
+                });
+            }
+
             // Calculate total amount (if not provided)
             decimal totalAmount = dto.TotalAmount > 0 ? dto.TotalAmount : 
                 dto.LoanAmount + dto.InterestAmount + dto.ProcessingFee + dto.InsuranceFee;
 
-            var loan = new Loan
-            {
-                MemberId = dto.MemberId,
-                LoanAmount = dto.LoanAmount,
-                InterestAmount = dto.InterestAmount,
-                ProcessingFee = dto.ProcessingFee,
-                InsuranceFee = dto.InsuranceFee,
-                IsSavingEnabled = dto.IsSavingEnabled,
-                SavingAmount = dto.SavingAmount,
-                TotalAmount = totalAmount,
-                Status = "Active",
-                DisbursementDate = dto.DisbursementDate ?? DateTime.UtcNow, 
-                CollectionStartDate = dto.CollectionStartDate,
-                CollectionTerm = dto.CollectionTerm,
-                NoOfTerms = dto.NoOfTerms,
-                CreatedBy = userId,
-                CreatedAt = DateTime.UtcNow
-            };
+            // Use a transaction to ensure all operations succeed or all rollback
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-            _context.Loans.Add(loan);
-            await _context.SaveChangesAsync();
-
-            // Automatically generate loan schedulers using the service
-            if (loan.NoOfTerms > 0 && loan.CollectionStartDate.HasValue && !string.IsNullOrEmpty(loan.CollectionTerm))
+            try
             {
-                try
+                // 1. Create the loan
+                var loan = new Loan
+                {
+                    MemberId = dto.MemberId,
+                    LoanAmount = dto.LoanAmount,
+                    InterestAmount = dto.InterestAmount,
+                    ProcessingFee = dto.ProcessingFee,
+                    InsuranceFee = dto.InsuranceFee,
+                    IsSavingEnabled = dto.IsSavingEnabled,
+                    SavingAmount = dto.SavingAmount,
+                    TotalAmount = totalAmount,
+                    Status = "Active",
+                    DisbursementDate = dto.DisbursementDate ?? DateTime.UtcNow, 
+                    CollectionStartDate = dto.CollectionStartDate,
+                    CollectionTerm = dto.CollectionTerm,
+                    NoOfTerms = dto.NoOfTerms,
+                    CreatedBy = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.Loans.Add(loan);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation($"Created loan {loan.Id}");
+
+                // 2. Generate loan schedulers (required - will rollback if fails)
+                if (loan.NoOfTerms > 0 && loan.CollectionStartDate.HasValue && !string.IsNullOrEmpty(loan.CollectionTerm))
                 {
                     _logger.LogInformation($"Generating loan schedulers for loan {loan.Id}");
                     await _loanSchedulerService.GenerateEmiScheduleAsync(loan.Id, userId);
                     _logger.LogInformation($"Successfully generated loan schedulers for loan {loan.Id}");
                 }
-                catch (Exception ex)
+                else
                 {
-                    // Log the error but don't fail the loan creation
-                    // The schedules can be generated manually later via the API endpoint
-                    _logger.LogError(ex, $"Error generating loan schedulers for loan {loan.Id}: {ex.Message}");
+                    throw new InvalidOperationException($"Loan does not meet requirements for schedule generation. NoOfTerms: {loan.NoOfTerms}, CollectionStartDate: {loan.CollectionStartDate}, CollectionTerm: {loan.CollectionTerm}");
                 }
-            }
-            else
-            {
-                _logger.LogWarning($"Loan {loan.Id} does not meet requirements for schedule generation. NoOfTerms: {loan.NoOfTerms}, CollectionStartDate: {loan.CollectionStartDate}, CollectionTerm: {loan.CollectionTerm}");
-            }
 
-            // Record ledger transactions for loan disbursement and fees
-            try
-            {
+                // 3. Record ledger transactions (required - will rollback if fails)
                 _logger.LogInformation($"Recording ledger transactions for loan {loan.Id}");
 
-                // 1. Record loan disbursement (money given to member)
+                // Record loan disbursement (money given to member)
                 await _ledgerTransactionService.RecordWithdrawalAsync(
-                    paidFromUserId: userId, // Assuming user is the one disbursing the loan
+                    paidFromUserId: userId,
                     amount: loan.LoanAmount,
                     referenceId: loan.Id,
                     transactionType: "Loan disbursement",
@@ -135,11 +147,11 @@ namespace MCS.WebApi.Controllers
                 );
                 _logger.LogInformation($"Recorded loan disbursement of {loan.LoanAmount} for loan {loan.Id}");
 
-                // 2. Record processing fee (collected from member)
+                // Record processing fee (collected from member)
                 if (loan.ProcessingFee > 0)
                 {
                     await _ledgerTransactionService.RecordDepositAsync(
-                        paidToUserId: userId, // Organization receives the fee
+                        paidToUserId: userId,
                         amount: loan.ProcessingFee,
                         referenceId: loan.Id,
                         transactionType: "Processing fee",
@@ -149,11 +161,11 @@ namespace MCS.WebApi.Controllers
                     _logger.LogInformation($"Recorded processing fee of {loan.ProcessingFee} for loan {loan.Id}");
                 }
 
-                // 3. Record insurance fee (collected from member)
+                // Record insurance fee (collected from member)
                 if (loan.InsuranceFee > 0)
                 {
                     await _ledgerTransactionService.RecordDepositAsync(
-                        paidToUserId: userId, // Organization receives the fee
+                        paidToUserId: userId,
                         amount: loan.InsuranceFee,
                         referenceId: loan.Id,
                         transactionType: "Insurance fee",
@@ -164,15 +176,26 @@ namespace MCS.WebApi.Controllers
                 }
 
                 _logger.LogInformation($"Successfully recorded all ledger transactions for loan {loan.Id}");
+
+                // Commit the transaction - all operations succeeded
+                await transaction.CommitAsync();
+                _logger.LogInformation($"Successfully committed loan {loan.Id} with all related data");
+
+                return CreatedAtAction("GetLoan", new { id = loan.Id }, loan);
             }
             catch (Exception ex)
             {
-                // Log the error but don't fail the loan creation
-                // The transactions can be recorded manually later
-                _logger.LogError(ex, $"Error recording ledger transactions for loan {loan.Id}: {ex.Message}");
-            }
+                // Rollback the transaction - something failed
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, $"Error creating loan. All changes have been rolled back. Error: {ex.Message}");
 
-            return CreatedAtAction("GetLoan", new { id = loan.Id }, loan);
+                return BadRequest(new
+                {
+                    error = "Loan Creation Failed",
+                    message = $"Failed to create loan: {ex.Message}. All changes have been rolled back.",
+                    details = ex.InnerException?.Message
+                });
+            }
         }
 
         // GET: api/Loans/5
