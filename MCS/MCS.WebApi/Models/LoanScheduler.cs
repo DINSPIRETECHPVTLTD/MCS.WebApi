@@ -18,18 +18,24 @@ namespace MCS.WebApi.Models
         [Required]
         public DateTime PaymentDate { get; set; }
 
-        [Required]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ActualEmiAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ActualPrincipalAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ActualInterestAmount { get; set; }
+
         [Column(TypeName = "decimal(18,2)")]
         public decimal PaymentAmount { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal? SavingAmount { get; set; }
 
-        [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal PrincipalAmount { get; set; }
 
-        [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal InterestAmount { get; set; }
 
@@ -44,7 +50,7 @@ namespace MCS.WebApi.Models
         [StringLength(50)]
         public string? PaymentMode { get; set; } // Cash, Branch Bank Account, UPI, Other
 
-        public int CollectedBy { get; set; }
+        public int? CollectedBy { get; set; }
 
         [StringLength(500)]
         public string? Comments { get; set; }
