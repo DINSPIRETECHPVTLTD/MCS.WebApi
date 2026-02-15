@@ -25,6 +25,7 @@ namespace MCS.WebApi.Data
         public DbSet<LedgerTransaction> LedgerTransactions { get; set; }
         public DbSet<Investment> Investments { get; set; }
         public DbSet<LoanScheduler> LoanSchedulers { get; set; }
+        public DbSet<MemberMembershipFee> MemberMembershipFees { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -75,6 +76,7 @@ namespace MCS.WebApi.Data
             modelBuilder.Entity<Member>().HasQueryFilter(m => !m.IsDeleted);
             modelBuilder.Entity<Loan>().HasQueryFilter(l => !l.IsDeleted);
             modelBuilder.Entity<LoanPayment>().HasQueryFilter(lp => !lp.IsDeleted);
+            modelBuilder.Entity<MemberMembershipFee>().HasQueryFilter(mmf => !mmf.IsDeleted);
 
             // Configure User enum conversions (database stores as string, C# uses enum)
             // Role: 'Owner', 'BranchAdmin', 'Staff'
@@ -212,6 +214,31 @@ namespace MCS.WebApi.Data
                 .HasForeignKey(m => m.ModifiedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure MemberMembershipFee relationships
+            modelBuilder.Entity<MemberMembershipFee>()
+                .HasOne(mmf => mmf.Member)
+                .WithMany(m => m.MemberMembershipFees)
+                .HasForeignKey(mmf => mmf.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MemberMembershipFee>()
+                .HasOne(mmf => mmf.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(mmf => mmf.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MemberMembershipFee>()
+                .HasOne(mmf => mmf.ModifiedByUser)
+                .WithMany()
+                .HasForeignKey(mmf => mmf.ModifiedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MemberMembershipFee>()
+                .HasOne(mmf => mmf.CollectedByUser)
+                .WithMany()
+                .HasForeignKey(mmf => mmf.CollectedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Configure Loan relationships
             modelBuilder.Entity<Loan>()
                 .HasOne(l => l.Member)
@@ -331,7 +358,8 @@ namespace MCS.WebApi.Data
                     entry.Entity is POC || 
                     entry.Entity is Member ||
                     entry.Entity is Loan ||
-                    entry.Entity is LoanPayment)
+                    entry.Entity is LoanPayment ||
+                    entry.Entity is MemberMembershipFee)
                 {
                     switch (entry.State)
                     {
