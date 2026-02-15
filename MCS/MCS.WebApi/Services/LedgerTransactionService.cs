@@ -134,7 +134,7 @@ namespace MCS.WebApi.Services
         public async Task<LedgerTransaction> RecordDepositAsync(
             int paidToUserId,
             decimal amount,
-            string transactionType,
+            string transactionType = "Deposit",
             int? referenceId = null,
             string? comments = null,
             int? createdBy = null)

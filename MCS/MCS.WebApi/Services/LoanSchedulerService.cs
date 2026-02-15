@@ -63,12 +63,10 @@ namespace MCS.WebApi.Services
                 {
                     LoanId = loanId,
                     ScheduleDate = currentDate,
-                    PaymentDate = currentDate,
                     PaymentAmount = Math.Round(paymentPerInstallment, 2),
                     SavingAmount = loan.IsSavingEnabled ? Math.Round(loan.SavingAmount / loan.NoOfTerms, 2) : 0,
                     PrincipalAmount = Math.Round(principalPerInstallment, 2),
                     InterestAmount = Math.Round(interestPerInstallment, 2),
-                    CollectedBy = userId,
                     InstallmentNo = i,
                     Status = "Not Paid",
                     CreatedBy = userId,

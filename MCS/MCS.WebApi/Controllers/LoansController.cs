@@ -125,8 +125,8 @@ namespace MCS.WebApi.Controllers
                 _logger.LogInformation($"Recording ledger transactions for loan {loan.Id}");
 
                 // 1. Record loan disbursement (money given to member)
-                await _ledgerTransactionService.RecordDepositAsync(
-                    paidToUserId: userId, // Assuming user is the one disbursing the loan
+                await _ledgerTransactionService.RecordWithdrawalAsync(
+                    paidFromUserId: userId, // Assuming user is the one disbursing the loan
                     amount: loan.LoanAmount,
                     referenceId: loan.Id,
                     transactionType: "Loan disbursement",
