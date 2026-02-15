@@ -16,12 +16,18 @@ namespace MCS.WebApi.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly LoanSchedulerService _loanSchedulerService;
+        private readonly LedgerTransactionService _ledgerTransactionService;
         private readonly ILogger<LoansController> _logger;
 
-        public LoansController(ApplicationDbContext context, LoanSchedulerService loanSchedulerService, ILogger<LoansController> logger)
+        public LoansController(
+            ApplicationDbContext context, 
+            LoanSchedulerService loanSchedulerService, 
+            LedgerTransactionService ledgerTransactionService,
+            ILogger<LoansController> logger)
         {
             _context = context;
             _loanSchedulerService = loanSchedulerService;
+            _ledgerTransactionService = ledgerTransactionService;
             _logger = logger;
         }
 
@@ -111,6 +117,59 @@ namespace MCS.WebApi.Controllers
             else
             {
                 _logger.LogWarning($"Loan {loan.Id} does not meet requirements for schedule generation. NoOfTerms: {loan.NoOfTerms}, CollectionStartDate: {loan.CollectionStartDate}, CollectionTerm: {loan.CollectionTerm}");
+            }
+
+            // Record ledger transactions for loan disbursement and fees
+            try
+            {
+                _logger.LogInformation($"Recording ledger transactions for loan {loan.Id}");
+
+                // 1. Record loan disbursement (money given to member)
+                await _ledgerTransactionService.RecordDepositAsync(
+                    paidToUserId: userId, // Assuming user is the one disbursing the loan
+                    amount: loan.LoanAmount,
+                    referenceId: loan.Id,
+                    transactionType: "Loan disbursement",
+                    comments: $"Loan disbursement for Loan ID: {loan.Id}, Member ID: {loan.MemberId}",
+                    createdBy: userId
+                );
+                _logger.LogInformation($"Recorded loan disbursement of {loan.LoanAmount} for loan {loan.Id}");
+
+                // 2. Record processing fee (collected from member)
+                if (loan.ProcessingFee > 0)
+                {
+                    await _ledgerTransactionService.RecordDepositAsync(
+                        paidToUserId: userId, // Organization receives the fee
+                        amount: loan.ProcessingFee,
+                        referenceId: loan.Id,
+                        transactionType: "Processing fee",
+                        comments: $"Processing fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}",
+                        createdBy: userId
+                    );
+                    _logger.LogInformation($"Recorded processing fee of {loan.ProcessingFee} for loan {loan.Id}");
+                }
+
+                // 3. Record insurance fee (collected from member)
+                if (loan.InsuranceFee > 0)
+                {
+                    await _ledgerTransactionService.RecordDepositAsync(
+                        paidToUserId: userId, // Organization receives the fee
+                        amount: loan.InsuranceFee,
+                        referenceId: loan.Id,
+                        transactionType: "Insurance fee",
+                        comments: $"Insurance fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}",
+                        createdBy: userId
+                    );
+                    _logger.LogInformation($"Recorded insurance fee of {loan.InsuranceFee} for loan {loan.Id}");
+                }
+
+                _logger.LogInformation($"Successfully recorded all ledger transactions for loan {loan.Id}");
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the loan creation
+                // The transactions can be recorded manually later
+                _logger.LogError(ex, $"Error recording ledger transactions for loan {loan.Id}: {ex.Message}");
             }
 
             return CreatedAtAction("GetLoan", new { id = loan.Id }, loan);
