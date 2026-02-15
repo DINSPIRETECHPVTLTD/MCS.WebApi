@@ -9,11 +9,9 @@ namespace MCS.WebApi.Models
         [Key]
         public int Id { get; set; }
 
-        [Required]
-        public int FromUserId { get; set; }
+        public int? PaidFromUserId { get; set; }
 
-        [Required]
-        public int ToUserId { get; set; }
+        public int? PaidToUserId { get; set; }
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]
@@ -33,16 +31,19 @@ namespace MCS.WebApi.Models
         public string TransactionType { get; set; } = string.Empty;
 
         [StringLength(100)]
-        public string? ReferenceId { get; set; }
+        public int? ReferenceId { get; set; }
 
-        // Navigation properties
-        [ForeignKey("FromUserId")]
-        public virtual User FromUser { get; set; } = null!;
+                [StringLength(500)]
+                public string? Comments { get; set; }
 
-        [ForeignKey("ToUserId")]
-        public virtual User ToUser { get; set; } = null!;
+                // Navigation properties
+                [ForeignKey("PaidFromUserId")]
+                public virtual User? FromUser { get; set; }
 
-        [ForeignKey("CreatedBy")]
-        public virtual User? CreatedByUser { get; set; }
-    }
-}
+                [ForeignKey("PaidToUserId")]
+                public virtual User? ToUser { get; set; }
+
+                [ForeignKey("CreatedBy")]
+                public virtual User? CreatedByUser { get; set; }
+            }
+        }

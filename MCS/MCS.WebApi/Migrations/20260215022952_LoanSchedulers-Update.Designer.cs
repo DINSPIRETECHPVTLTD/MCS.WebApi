@@ -4,6 +4,7 @@ using MCS.WebApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MCS.WebApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260215022952_LoanSchedulers-Update")]
+    partial class LoanSchedulersUpdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -205,33 +208,23 @@ namespace MCS.WebApi.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("Comments")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("FromUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PaidFromUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PaidToUserId")
+                    b.Property<int>("FromUserId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("PaymentDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("ReferenceId")
+                    b.Property<string>("ReferenceId")
                         .HasMaxLength(100)
-                        .HasColumnType("int");
+                        .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("ToUserId")
+                    b.Property<int>("ToUserId")
                         .HasColumnType("int");
 
                     b.Property<string>("TransactionType")
@@ -243,9 +236,9 @@ namespace MCS.WebApi.Migrations
 
                     b.HasIndex("CreatedBy");
 
-                    b.HasIndex("PaidFromUserId");
+                    b.HasIndex("FromUserId");
 
-                    b.HasIndex("PaidToUserId");
+                    b.HasIndex("ToUserId");
 
                     b.ToTable("LedgerTransactions");
                 });
@@ -338,16 +331,7 @@ namespace MCS.WebApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LoanSchedulerId"));
 
-                    b.Property<decimal>("ActualEmiAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("ActualInterestAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("ActualPrincipalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("CollectedBy")
+                    b.Property<int>("CollectedBy")
                         .HasColumnType("int");
 
                     b.Property<string>("Comments")
@@ -1062,13 +1046,15 @@ namespace MCS.WebApi.Migrations
 
                     b.HasOne("MCS.WebApi.Models.User", "FromUser")
                         .WithMany()
-                        .HasForeignKey("PaidFromUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("FromUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("MCS.WebApi.Models.User", "ToUser")
                         .WithMany()
-                        .HasForeignKey("PaidToUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("ToUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("CreatedByUser");
 
@@ -1108,7 +1094,8 @@ namespace MCS.WebApi.Migrations
                     b.HasOne("MCS.WebApi.Models.User", "CollectedByUser")
                         .WithMany()
                         .HasForeignKey("CollectedBy")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("MCS.WebApi.Models.User", "CreatedByUser")
                         .WithMany()

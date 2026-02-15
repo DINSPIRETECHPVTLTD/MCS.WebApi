@@ -4,6 +4,7 @@ using MCS.WebApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MCS.WebApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260215182916_LedgerTransaction-1")]
+    partial class LedgerTransaction1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -218,12 +221,6 @@ namespace MCS.WebApi.Migrations
                     b.Property<int?>("FromUserId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("PaidFromUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PaidToUserId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("PaymentDate")
                         .HasColumnType("datetime2");
 
@@ -243,9 +240,9 @@ namespace MCS.WebApi.Migrations
 
                     b.HasIndex("CreatedBy");
 
-                    b.HasIndex("PaidFromUserId");
+                    b.HasIndex("FromUserId");
 
-                    b.HasIndex("PaidToUserId");
+                    b.HasIndex("ToUserId");
 
                     b.ToTable("LedgerTransactions");
                 });
@@ -1062,12 +1059,12 @@ namespace MCS.WebApi.Migrations
 
                     b.HasOne("MCS.WebApi.Models.User", "FromUser")
                         .WithMany()
-                        .HasForeignKey("PaidFromUserId")
+                        .HasForeignKey("FromUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MCS.WebApi.Models.User", "ToUser")
                         .WithMany()
-                        .HasForeignKey("PaidToUserId")
+                        .HasForeignKey("ToUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("CreatedByUser");

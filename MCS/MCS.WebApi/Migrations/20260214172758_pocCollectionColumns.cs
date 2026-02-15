@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -31,6 +31,13 @@ namespace MCS.WebApi.Migrations
                 maxLength: 20,
                 nullable: false,
                 defaultValue: "");
+
+            // Fix existing rows: set CollectionBy to CreatedBy so FK to Users is valid (no User.Id = 0)
+            migrationBuilder.Sql(@"
+                UPDATE [POCs]
+                SET [CollectionBy] = [CreatedBy]
+                WHERE [CollectionBy] = 0;
+            ");
 
             migrationBuilder.CreateIndex(
                 name: "IX_POCs_CollectionBy",

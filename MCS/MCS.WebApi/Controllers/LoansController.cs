@@ -1,6 +1,7 @@
 using MCS.WebApi.Data;
 using MCS.WebApi.DTOs.Loan;
 using MCS.WebApi.Models;
+using MCS.WebApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,20 @@ namespace MCS.WebApi.Controllers
     public class LoansController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly LoanSchedulerService _loanSchedulerService;
+        private readonly LedgerTransactionService _ledgerTransactionService;
+        private readonly ILogger<LoansController> _logger;
 
-        public LoansController(ApplicationDbContext context)
+        public LoansController(
+            ApplicationDbContext context, 
+            LoanSchedulerService loanSchedulerService, 
+            LedgerTransactionService ledgerTransactionService,
+            ILogger<LoansController> logger)
         {
             _context = context;
+            _loanSchedulerService = loanSchedulerService;
+            _ledgerTransactionService = ledgerTransactionService;
+            _logger = logger;
         }
 
         // POST: api/Loans
@@ -61,12 +72,12 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
-            // Calculate total amount
-            decimal totalAmount = dto.LoanAmount + dto.InterestAmount + dto.ProcessingFee + dto.InsuranceFee;
+            // Calculate total amount (if not provided)
+            decimal totalAmount = dto.TotalAmount > 0 ? dto.TotalAmount : 
+                dto.LoanAmount + dto.InterestAmount + dto.ProcessingFee + dto.InsuranceFee;
 
             var loan = new Loan
             {
-                LoanCode = dto.LoanCode,
                 MemberId = dto.MemberId,
                 LoanAmount = dto.LoanAmount,
                 InterestAmount = dto.InterestAmount,
@@ -75,15 +86,91 @@ namespace MCS.WebApi.Controllers
                 IsSavingEnabled = dto.IsSavingEnabled,
                 SavingAmount = dto.SavingAmount,
                 TotalAmount = totalAmount,
-                OutstandingAmount = totalAmount,
                 Status = "Active",
-                DisbursementDate = DateTime.UtcNow,
+                DisbursementDate = dto.DisbursementDate ?? DateTime.UtcNow, 
+                CollectionStartDate = dto.CollectionStartDate,
+                CollectionTerm = dto.CollectionTerm,
+                NoOfTerms = dto.NoOfTerms,
                 CreatedBy = userId,
                 CreatedAt = DateTime.UtcNow
             };
 
             _context.Loans.Add(loan);
             await _context.SaveChangesAsync();
+
+            // Automatically generate loan schedulers using the service
+            if (loan.NoOfTerms > 0 && loan.CollectionStartDate.HasValue && !string.IsNullOrEmpty(loan.CollectionTerm))
+            {
+                try
+                {
+                    _logger.LogInformation($"Generating loan schedulers for loan {loan.Id}");
+                    await _loanSchedulerService.GenerateEmiScheduleAsync(loan.Id, userId);
+                    _logger.LogInformation($"Successfully generated loan schedulers for loan {loan.Id}");
+                }
+                catch (Exception ex)
+                {
+                    // Log the error but don't fail the loan creation
+                    // The schedules can be generated manually later via the API endpoint
+                    _logger.LogError(ex, $"Error generating loan schedulers for loan {loan.Id}: {ex.Message}");
+                }
+            }
+            else
+            {
+                _logger.LogWarning($"Loan {loan.Id} does not meet requirements for schedule generation. NoOfTerms: {loan.NoOfTerms}, CollectionStartDate: {loan.CollectionStartDate}, CollectionTerm: {loan.CollectionTerm}");
+            }
+
+            // Record ledger transactions for loan disbursement and fees
+            try
+            {
+                _logger.LogInformation($"Recording ledger transactions for loan {loan.Id}");
+
+                // 1. Record loan disbursement (money given to member)
+                await _ledgerTransactionService.RecordWithdrawalAsync(
+                    paidFromUserId: userId, // Assuming user is the one disbursing the loan
+                    amount: loan.LoanAmount,
+                    referenceId: loan.Id,
+                    transactionType: "Loan disbursement",
+                    comments: $"Loan disbursement for Loan ID: {loan.Id}, Member ID: {loan.MemberId}",
+                    createdBy: userId
+                );
+                _logger.LogInformation($"Recorded loan disbursement of {loan.LoanAmount} for loan {loan.Id}");
+
+                // 2. Record processing fee (collected from member)
+                if (loan.ProcessingFee > 0)
+                {
+                    await _ledgerTransactionService.RecordDepositAsync(
+                        paidToUserId: userId, // Organization receives the fee
+                        amount: loan.ProcessingFee,
+                        referenceId: loan.Id,
+                        transactionType: "Processing fee",
+                        comments: $"Processing fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}",
+                        createdBy: userId
+                    );
+                    _logger.LogInformation($"Recorded processing fee of {loan.ProcessingFee} for loan {loan.Id}");
+                }
+
+                // 3. Record insurance fee (collected from member)
+                if (loan.InsuranceFee > 0)
+                {
+                    await _ledgerTransactionService.RecordDepositAsync(
+                        paidToUserId: userId, // Organization receives the fee
+                        amount: loan.InsuranceFee,
+                        referenceId: loan.Id,
+                        transactionType: "Insurance fee",
+                        comments: $"Insurance fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}",
+                        createdBy: userId
+                    );
+                    _logger.LogInformation($"Recorded insurance fee of {loan.InsuranceFee} for loan {loan.Id}");
+                }
+
+                _logger.LogInformation($"Successfully recorded all ledger transactions for loan {loan.Id}");
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the loan creation
+                // The transactions can be recorded manually later
+                _logger.LogError(ex, $"Error recording ledger transactions for loan {loan.Id}: {ex.Message}");
+            }
 
             return CreatedAtAction("GetLoan", new { id = loan.Id }, loan);
         }
@@ -211,7 +298,7 @@ namespace MCS.WebApi.Controllers
 
             var loans = await _context.Loans
                 .Where(l => l.MemberId == memberId)
-                .Include(l => l.LoanPayments)
+                .Include(l => l.LoanSchedulers)
                 .ToListAsync();
 
             return Ok(loans);
@@ -259,47 +346,34 @@ namespace MCS.WebApi.Controllers
                 .ThenInclude(m => m.Center)
                 .ThenInclude(c => c.Branch)
                 .Where(l => l.Member.Center.BranchId == branchId)
-                .Include(l => l.LoanPayments)
+                .Include(l => l.LoanSchedulers)
                 .ToListAsync();
 
-            var loanDtos = loans.Select(l => new LoanDto
-            {
-                Id = l.Id,
-                LoanCode = l.LoanCode,
-                MemberId = l.MemberId,
-                LoanAmount = l.LoanAmount,
-                InterestAmount = l.InterestAmount,
-                ProcessingFee = l.ProcessingFee,
-                InsuranceFee = l.InsuranceFee,
-                IsSavingEnabled = l.IsSavingEnabled,
-                SavingAmount = l.SavingAmount,
-                TotalAmount = l.TotalAmount,
-                OutstandingAmount = l.OutstandingAmount,
-                Status = l.Status,
-                DisbursementDate = l.DisbursementDate,
-                ClosureDate = l.ClosureDate,
-                CreatedAt = l.CreatedAt,
-                TotalPayments = l.LoanPayments?.Count ?? 0,
-                TotalPaidAmount = l.LoanPayments?.Sum(p => p.TotalPaymentAmount) ?? 0,
-                Member = new LoanMemberDto
-                {
-                    Id = l.Member.Id,
-                    FirstName = l.Member.FirstName,
-                    MiddleName = l.Member.MiddleName,
-                    LastName = l.Member.LastName,
-                    PhoneNumber = l.Member.PhoneNumber,
-                    CenterId = l.Member.CenterId,
-                    Center = new LoanCenterDto
-                    {
-                        Id = l.Member.Center.Id,
-                        Name = l.Member.Center.Name,
-                        BranchId = l.Member.Center.BranchId,
-                        BranchName = l.Member.Center.Branch.Name
+                        var loanDtos = loans.Select(l => new LoanDto
+                        {
+                            Id = l.Id,
+                            MemberId = l.MemberId,
+                            LoanAmount = l.LoanAmount,
+                            InterestAmount = l.InterestAmount,
+                            ProcessingFee = l.ProcessingFee,
+                            InsuranceFee = l.InsuranceFee,
+                            IsSavingEnabled = l.IsSavingEnabled,
+                            SavingAmount = l.SavingAmount,
+                            TotalAmount = l.TotalAmount,
+                            Status = l.Status,
+                            DisbursementDate = l.DisbursementDate,
+                            ClosureDate = l.ClosureDate,
+                            CollectionStartDate = l.CollectionStartDate,
+                            CollectionTerm = l.CollectionTerm,
+                            NoOfTerms = l.NoOfTerms,
+                            CreatedBy = l.CreatedBy,
+                            CreatedAt = l.CreatedAt,
+                            ModifiedBy = l.ModifiedBy,
+                            ModifiedAt = l.ModifiedAt,
+                            IsDeleted = l.IsDeleted
+                        }).ToList();
+
+                        return Ok(loanDtos);
                     }
                 }
-            }).ToList();
-
-            return Ok(loanDtos);
-        }
-    }
-}
+            }

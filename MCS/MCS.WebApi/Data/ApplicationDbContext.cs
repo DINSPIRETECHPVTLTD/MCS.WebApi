@@ -18,13 +18,13 @@ namespace MCS.WebApi.Data
         public DbSet<POC> POCs { get; set; }
         public DbSet<Member> Members { get; set; }
         public DbSet<Loan> Loans { get; set; }
-        public DbSet<LoanPayment> LoanPayments { get; set; }
         public DbSet<MasterLookup> MasterLookups { get; set; }
-        public DbSet<PaymentTerm>  PaymentTerms { get; set; }
+        public DbSet<PaymentTerm> PaymentTerms { get; set; }
         public DbSet<Ledger> Ledgers { get; set; }
         public DbSet<LedgerTransaction> LedgerTransactions { get; set; }
         public DbSet<Investment> Investments { get; set; }
         public DbSet<LoanScheduler> LoanSchedulers { get; set; }
+        public DbSet<MemberMembershipFee> MemberMembershipFees { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -55,6 +55,17 @@ namespace MCS.WebApi.Data
                       .IsUnique();
             });
 
+            modelBuilder.Entity<PaymentTerm>(entity =>
+            {
+                entity.ToTable("PaymentTerms");
+                entity.HasKey(e => e.PaymentTermId);
+                entity.Property(e => e.PaymentTermName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.PaymentType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.ProcessingFee).HasPrecision(18, 2);
+                entity.Property(e => e.RateOfInterest).HasPrecision(18, 2);
+                entity.Property(e => e.InsuranceFee).HasPrecision(18, 2);
+            });
+
             // Configure soft delete query filters
             modelBuilder.Entity<Organization>().HasQueryFilter(o => !o.IsDeleted);
             modelBuilder.Entity<User>().HasQueryFilter(u => !u.IsDeleted);
@@ -63,7 +74,7 @@ namespace MCS.WebApi.Data
             modelBuilder.Entity<POC>().HasQueryFilter(p => !p.IsDeleted);
             modelBuilder.Entity<Member>().HasQueryFilter(m => !m.IsDeleted);
             modelBuilder.Entity<Loan>().HasQueryFilter(l => !l.IsDeleted);
-            modelBuilder.Entity<LoanPayment>().HasQueryFilter(lp => !lp.IsDeleted);
+            modelBuilder.Entity<MemberMembershipFee>().HasQueryFilter(mmf => !mmf.IsDeleted);
 
             // Configure User enum conversions (database stores as string, C# uses enum)
             // Role: 'Owner', 'BranchAdmin', 'Staff'
@@ -201,6 +212,31 @@ namespace MCS.WebApi.Data
                 .HasForeignKey(m => m.ModifiedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure MemberMembershipFee relationships
+            modelBuilder.Entity<MemberMembershipFee>()
+                .HasOne(mmf => mmf.Member)
+                .WithMany(m => m.MemberMembershipFees)
+                .HasForeignKey(mmf => mmf.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MemberMembershipFee>()
+                .HasOne(mmf => mmf.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(mmf => mmf.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MemberMembershipFee>()
+                .HasOne(mmf => mmf.ModifiedByUser)
+                .WithMany()
+                .HasForeignKey(mmf => mmf.ModifiedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MemberMembershipFee>()
+                .HasOne(mmf => mmf.CollectedByUser)
+                .WithMany()
+                .HasForeignKey(mmf => mmf.CollectedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Configure Loan relationships
             modelBuilder.Entity<Loan>()
                 .HasOne(l => l.Member)
@@ -220,24 +256,6 @@ namespace MCS.WebApi.Data
                 .HasForeignKey(l => l.ModifiedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Configure LoanPayment relationships
-            modelBuilder.Entity<LoanPayment>()
-                .HasOne(lp => lp.Loan)
-                .WithMany(l => l.LoanPayments)
-                .HasForeignKey(lp => lp.LoanId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<LoanPayment>()
-                .HasOne(lp => lp.CreatedByUser)
-                .WithMany()
-                .HasForeignKey(lp => lp.CreatedBy)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<LoanPayment>()
-                .HasOne(lp => lp.ModifiedByUser)
-                .WithMany()
-                .HasForeignKey(lp => lp.ModifiedBy)
-                .OnDelete(DeleteBehavior.Restrict);
 
             // Configure Ledger relationships
             modelBuilder.Entity<Ledger>()
@@ -250,13 +268,13 @@ namespace MCS.WebApi.Data
             modelBuilder.Entity<LedgerTransaction>()
                 .HasOne(lt => lt.FromUser)
                 .WithMany()
-                .HasForeignKey(lt => lt.FromUserId)
+                .HasForeignKey(lt => lt.PaidFromUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<LedgerTransaction>()
                 .HasOne(lt => lt.ToUser)
                 .WithMany()
-                .HasForeignKey(lt => lt.ToUserId)
+                .HasForeignKey(lt => lt.PaidToUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<LedgerTransaction>()
@@ -291,6 +309,13 @@ namespace MCS.WebApi.Data
                 .HasForeignKey(ls => ls.CreatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<LoanScheduler>()
+              .HasOne(ls => ls.CollectedByUser)
+              .WithMany()
+              .HasForeignKey(ls => ls.CollectedBy)
+              .OnDelete(DeleteBehavior.Restrict);
+
+
             // Indexes for performance
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
@@ -320,7 +345,7 @@ namespace MCS.WebApi.Data
                     entry.Entity is POC || 
                     entry.Entity is Member ||
                     entry.Entity is Loan ||
-                    entry.Entity is LoanPayment)
+                    entry.Entity is MemberMembershipFee)
                 {
                     switch (entry.State)
                     {
@@ -340,6 +365,20 @@ namespace MCS.WebApi.Data
                                 entry.Property("IsDeleted").IsModified = false;
                             }
                             entry.Property("ModifiedAt").CurrentValue = DateTime.UtcNow;
+                            break;
+                    }
+                }
+                // Handle LoanScheduler separately (no IsDeleted field)
+                else if (entry.Entity is LoanScheduler)
+                {
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            if (entry.Property("CreatedDate").CurrentValue == null || 
+                                (entry.Property("CreatedDate").CurrentValue is DateTime date && date == default(DateTime)))
+                            {
+                                entry.Property("CreatedDate").CurrentValue = DateTime.UtcNow;
+                            }
                             break;
                     }
                 }

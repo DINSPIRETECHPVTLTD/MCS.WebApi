@@ -61,6 +61,8 @@ builder.Services.AddCors(options =>
 
 // Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<LoanSchedulerService>();
+builder.Services.AddScoped<LedgerTransactionService>();
 
 var app = builder.Build();
 

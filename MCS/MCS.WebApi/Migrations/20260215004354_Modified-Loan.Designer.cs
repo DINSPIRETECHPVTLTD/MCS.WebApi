@@ -4,6 +4,7 @@ using MCS.WebApi.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MCS.WebApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260215004354_Modified-Loan")]
+    partial class ModifiedLoan
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -205,33 +208,23 @@ namespace MCS.WebApi.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("Comments")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("FromUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PaidFromUserId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PaidToUserId")
+                    b.Property<int>("FromUserId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("PaymentDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("ReferenceId")
+                    b.Property<string>("ReferenceId")
                         .HasMaxLength(100)
-                        .HasColumnType("int");
+                        .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("ToUserId")
+                    b.Property<int>("ToUserId")
                         .HasColumnType("int");
 
                     b.Property<string>("TransactionType")
@@ -243,9 +236,9 @@ namespace MCS.WebApi.Migrations
 
                     b.HasIndex("CreatedBy");
 
-                    b.HasIndex("PaidFromUserId");
+                    b.HasIndex("FromUserId");
 
-                    b.HasIndex("PaidToUserId");
+                    b.HasIndex("ToUserId");
 
                     b.ToTable("LedgerTransactions");
                 });
@@ -263,11 +256,6 @@ namespace MCS.WebApi.Migrations
 
                     b.Property<DateTime?>("CollectionStartDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("CollectionTerm")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -302,9 +290,6 @@ namespace MCS.WebApi.Migrations
                     b.Property<int?>("ModifiedBy")
                         .HasColumnType("int");
 
-                    b.Property<int>("NoOfTerms")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("ProcessingFee")
                         .HasColumnType("decimal(18,2)");
 
@@ -330,35 +315,26 @@ namespace MCS.WebApi.Migrations
                     b.ToTable("Loans");
                 });
 
-            modelBuilder.Entity("MCS.WebApi.Models.LoanScheduler", b =>
+            modelBuilder.Entity("MCS.WebApi.Models.LoanPayment", b =>
                 {
-                    b.Property<int>("LoanSchedulerId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LoanSchedulerId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("ActualEmiAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("ActualInterestAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("ActualPrincipalAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("CollectedBy")
-                        .HasColumnType("int");
+                    b.Property<DateTime?>("ActualPaymentDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Comments")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("CreatedBy")
                         .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime2");
 
                     b.Property<int>("InstallmentNo")
                         .HasColumnType("int");
@@ -366,14 +342,17 @@ namespace MCS.WebApi.Migrations
                     b.Property<decimal>("InterestAmount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<int>("LoanId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("LoanId1")
-                        .HasColumnType("int");
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
 
-                    b.Property<decimal>("PaymentAmount")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("PaymentDate")
                         .HasColumnType("datetime2");
@@ -382,29 +361,66 @@ namespace MCS.WebApi.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<decimal>("PenaltyAmount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("PrincipalAmount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("ReceivedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<decimal?>("SavingAmount")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("ScheduleDate")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.HasKey("LoanSchedulerId");
-
-                    b.HasIndex("CollectedBy");
+                    b.HasKey("Id");
 
                     b.HasIndex("CreatedBy");
 
                     b.HasIndex("LoanId");
 
-                    b.HasIndex("LoanId1");
+                    b.HasIndex("ModifiedBy");
+
+                    b.ToTable("LoanPayments");
+                });
+
+            modelBuilder.Entity("MCS.WebApi.Models.LoanScheduler", b =>
+                {
+                    b.Property<int>("LoanSchedulerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LoanSchedulerId"));
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("LoanId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PaymentAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ScheduleDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("LoanSchedulerId");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("LoanId");
 
                     b.ToTable("LoanSchedulers");
                 });
@@ -1062,13 +1078,15 @@ namespace MCS.WebApi.Migrations
 
                     b.HasOne("MCS.WebApi.Models.User", "FromUser")
                         .WithMany()
-                        .HasForeignKey("PaidFromUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("FromUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("MCS.WebApi.Models.User", "ToUser")
                         .WithMany()
-                        .HasForeignKey("PaidToUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("ToUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("CreatedByUser");
 
@@ -1103,13 +1121,34 @@ namespace MCS.WebApi.Migrations
                     b.Navigation("ModifiedByUser");
                 });
 
-            modelBuilder.Entity("MCS.WebApi.Models.LoanScheduler", b =>
+            modelBuilder.Entity("MCS.WebApi.Models.LoanPayment", b =>
                 {
-                    b.HasOne("MCS.WebApi.Models.User", "CollectedByUser")
+                    b.HasOne("MCS.WebApi.Models.User", "CreatedByUser")
                         .WithMany()
-                        .HasForeignKey("CollectedBy")
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MCS.WebApi.Models.Loan", "Loan")
+                        .WithMany("LoanPayments")
+                        .HasForeignKey("LoanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MCS.WebApi.Models.User", "ModifiedByUser")
+                        .WithMany()
+                        .HasForeignKey("ModifiedBy")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Loan");
+
+                    b.Navigation("ModifiedByUser");
+                });
+
+            modelBuilder.Entity("MCS.WebApi.Models.LoanScheduler", b =>
+                {
                     b.HasOne("MCS.WebApi.Models.User", "CreatedByUser")
                         .WithMany()
                         .HasForeignKey("CreatedBy")
@@ -1121,12 +1160,6 @@ namespace MCS.WebApi.Migrations
                         .HasForeignKey("LoanId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("MCS.WebApi.Models.Loan", null)
-                        .WithMany("LoanSchedulers")
-                        .HasForeignKey("LoanId1");
-
-                    b.Navigation("CollectedByUser");
 
                     b.Navigation("CreatedByUser");
 
@@ -1301,7 +1334,7 @@ namespace MCS.WebApi.Migrations
 
             modelBuilder.Entity("MCS.WebApi.Models.Loan", b =>
                 {
-                    b.Navigation("LoanSchedulers");
+                    b.Navigation("LoanPayments");
                 });
 
             modelBuilder.Entity("MCS.WebApi.Models.Member", b =>
