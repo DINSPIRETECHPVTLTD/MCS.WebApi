@@ -61,8 +61,9 @@ namespace MCS.WebApi.Controllers
                 }
             }
 
-            // Calculate total amount
-            decimal totalAmount = dto.LoanAmount + dto.InterestAmount + dto.ProcessingFee + dto.InsuranceFee;
+            // Calculate total amount (if not provided)
+            decimal totalAmount = dto.TotalAmount > 0 ? dto.TotalAmount : 
+                dto.LoanAmount + dto.InterestAmount + dto.ProcessingFee + dto.InsuranceFee;
 
             var loan = new Loan
             {
@@ -75,7 +76,10 @@ namespace MCS.WebApi.Controllers
                 SavingAmount = dto.SavingAmount,
                 TotalAmount = totalAmount,
                 Status = "Active",
-                DisbursementDate = DateTime.UtcNow,
+                DisbursementDate = dto.DisbursementDate ?? DateTime.UtcNow, 
+                CollectionStartDate = dto.CollectionStartDate,
+                CollectionTerm = dto.CollectionTerm,
+                NoOfTerms = dto.NoOfTerms,
                 CreatedBy = userId,
                 CreatedAt = DateTime.UtcNow
             };
@@ -274,25 +278,14 @@ namespace MCS.WebApi.Controllers
                 Status = l.Status,
                 DisbursementDate = l.DisbursementDate,
                 ClosureDate = l.ClosureDate,
+                CollectionStartDate = l.CollectionStartDate,
+                CollectionTerm = l.CollectionTerm,
+                NoOfTerms = l.NoOfTerms,
+                CreatedBy = l.CreatedBy,
                 CreatedAt = l.CreatedAt,
-                TotalPayments = 0, //TODO: Calculate total payments from LoanSchedulers
-                TotalPaidAmount = l.LoanSchedulers?.Sum(p => p.PaymentAmount) ?? 0,
-                Member = new LoanMemberDto
-                {
-                    Id = l.Member.Id,
-                    FirstName = l.Member.FirstName,
-                    MiddleName = l.Member.MiddleName,
-                    LastName = l.Member.LastName,
-                    PhoneNumber = l.Member.PhoneNumber,
-                    CenterId = l.Member.CenterId,
-                    Center = new LoanCenterDto
-                    {
-                        Id = l.Member.Center.Id,
-                        Name = l.Member.Center.Name,
-                        BranchId = l.Member.Center.BranchId,
-                        BranchName = l.Member.Center.Branch.Name
-                    }
-                }
+                ModifiedBy = l.ModifiedBy,
+                ModifiedAt = l.ModifiedAt,
+                IsDeleted = l.IsDeleted
             }).ToList();
 
             return Ok(loanDtos);
