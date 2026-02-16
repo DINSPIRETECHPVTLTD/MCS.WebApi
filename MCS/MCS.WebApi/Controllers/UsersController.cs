@@ -65,6 +65,7 @@ namespace MCS.WebApi.Controllers
 
         // GET: api/Users/5
         [HttpGet("{id}")]
+        [Authorize(Roles = "Owner")]
         public async Task<ActionResult<User>> GetUser(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
