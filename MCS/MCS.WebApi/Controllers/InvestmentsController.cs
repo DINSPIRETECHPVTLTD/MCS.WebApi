@@ -1,6 +1,7 @@
 ﻿using MCS.WebApi.Data;
 using MCS.WebApi.DTOs;
 using MCS.WebApi.Models;
+using MCS.WebApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +15,12 @@ namespace MCS.WebApi.Controllers
     public class InvestmentsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly LedgerTransactionService _ledgerTransactionService;
 
-        public InvestmentsController(ApplicationDbContext context)
+        public InvestmentsController(ApplicationDbContext context, LedgerTransactionService ledgerTransactionService)
         {
             _context = context;
+            _ledgerTransactionService = ledgerTransactionService;
         }
 
 
@@ -67,19 +70,34 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            var investment = new Investment
+            if (dto.UserId > 0)
             {
-                UserId = dto.UserId,
-                Amount = dto.Amount,
-                InvestmentDate = dto.InvestmentDate,
-                CreatedById = userId,
-                CreatedDate = DateTime.UtcNow
-            };
 
-            _context.Investments.Add(investment);
-            await _context.SaveChangesAsync();
+                var investment = new Investment
+                {
+                    UserId = dto.UserId,
+                    Amount = dto.Amount,
+                    InvestmentDate = dto.InvestmentDate,
+                    CreatedById = userId,
+                    CreatedDate = DateTime.UtcNow
+                };
 
-            return CreatedAtAction("Get", new { id = investment.Id }, investment);
+                _context.Investments.Add(investment);
+
+                var investorName = await _context.Users.FindAsync(dto.UserId);
+
+                string comment = $"Investment of {dto.Amount} from {investorName}";
+
+                await _context.SaveChangesAsync();
+
+                await _ledgerTransactionService.RecordDepositAsync(dto.UserId, dto.Amount, "Investment", investment.Id, comment, userId);
+
+                return CreatedAtAction("Get", new { id = investment.Id }, investment);
+            }
+            else
+            {
+                return Forbid();
+            }
 
 
         }
