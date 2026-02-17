@@ -1,5 +1,6 @@
 using MCS.WebApi.Data;
 using MCS.WebApi.DTOs.Member;
+using MCS.WebApi.Services;
 using MCS.WebApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,10 +15,12 @@ namespace MCS.WebApi.Controllers
     public class MembersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly LedgerTransactionService _ledgerTransactionService;
 
-        public MembersController(ApplicationDbContext context)
+        public MembersController(ApplicationDbContext context, LedgerTransactionService ledgerTransactionService)
         {
             _context = context;
+            _ledgerTransactionService = ledgerTransactionService;
         }
 
         // GET: api/Members
@@ -362,6 +365,86 @@ namespace MCS.WebApi.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // POST: api/Members/{id}/collect-membership-fee
+        [HttpPost("{id}/collect-membership-fee")]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
+        public async Task<ActionResult<MemberMembershipFee>> CollectMembershipFee(int id, CreateMemberMembershipFeeDto dto)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
+
+            // Validate member and access
+            var member = await _context.Members
+                .Include(m => m.Center)
+                .ThenInclude(c => c.Branch)
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            if (member == null)
+            {
+                return BadRequest("Member not found");
+            }
+
+            if (userType == "Organization")
+            {
+                if (member.Center.Branch.OrgId != user.OrgId)
+                {
+                    return Forbid();
+                }
+            }
+            else if (userType == "Branch")
+            {
+                if (!user.BranchId.HasValue || member.Center.BranchId != user.BranchId.Value)
+                {
+                    return Forbid();
+                }
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                var mmf = new MemberMembershipFee
+                {
+                    MemberId = member.Id,
+                    Amount = dto.Amount,
+                    PaidDate = dto.PaidDate ?? DateTime.UtcNow,
+                    CollectedBy = userId,
+                    PaymentMode = dto.PaymentMode,
+                    Comments = dto.Comments,
+                    CreatedBy = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.MemberMembershipFees.Add(mmf);
+                await _context.SaveChangesAsync();
+
+                // Record ledger transaction - deposit collected amount to collector's ledger
+                await _ledgerTransactionService.RecordDepositAsync(
+                    paidToUserId: userId,
+                    amount: mmf.Amount,
+                    transactionType: "Membership fee",
+                    referenceId: mmf.Id,
+                    comments: $"Membership fee collected for Member ID: {member.Id}",
+                    createdBy: userId
+                );
+
+                await transaction.CommitAsync();
+
+                return CreatedAtAction("GetMember", new { id = member.Id }, mmf);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return BadRequest(new { error = "Failed to collect membership fee", message = ex.Message });
+            }
         }
     }
 }
