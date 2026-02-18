@@ -138,7 +138,7 @@ namespace MCS.WebApi.Controllers
                     amount: loan.LoanAmount,
                     referenceId: loan.Id,
                     transactionType: "Loan disbursement",
-                    comments: $"Loan disbursement for Loan ID: {loan.Id}, Member ID: {loan.MemberId}",
+                    comments: $"Loan disbursement for Loan ID: {loan.Id}, Member ID: {loan.Member.FirstName}",
                     createdBy: userId
                 );
                 _logger.LogInformation($"Recorded loan disbursement of {loan.LoanAmount} for loan {loan.Id}");
@@ -165,7 +165,7 @@ namespace MCS.WebApi.Controllers
                         amount: loan.InsuranceFee,
                         referenceId: loan.Id,
                         transactionType: "Insurance fee",
-                        comments: $"Insurance fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}",
+                        comments: $"Insurance fee for Loan ID: {loan.Id}, from Member ID: {loan.Member.FirstName}",
                         createdBy: userId
                     );
                     _logger.LogInformation($"Recorded insurance fee of {loan.InsuranceFee} for loan {loan.Id}");
