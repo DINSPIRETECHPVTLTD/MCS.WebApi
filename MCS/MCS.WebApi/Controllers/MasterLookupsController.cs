@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MCS.WebApi.Data;
-using MCS.WebApi.Models;
 using MCS.WebApi.DTOs;
+using MCS.WebApi.Models;
 using System.Security.Claims;
 
 namespace MCS.WebApi.Controllers

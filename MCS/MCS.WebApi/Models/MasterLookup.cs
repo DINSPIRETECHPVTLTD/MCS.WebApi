@@ -1,11 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MCS.WebApi.Models
 {
+    /// <summary>Known lookup key constants. UI derives dropdown options from GET MasterLookups (distinct LookupKey).</summary>
     public static class LookupKeys
     {
         public const string LoanTerm = "LOAN_TERM";
         public const string PaymentType = "PAYMENT_TYPE";
+        public const string Relationship = "RELATIONSHIP";
+        public const string State = "STATE";
     }
 
     [Table("MasterLookups")]
