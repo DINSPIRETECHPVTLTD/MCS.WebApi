@@ -88,10 +88,6 @@ namespace MCS.WebApi.Controllers
                 });
             }
 
-            // Calculate total amount (if not provided)
-            decimal totalAmount = dto.TotalAmount > 0 ? dto.TotalAmount : 
-                dto.LoanAmount + dto.InterestAmount + dto.ProcessingFee + dto.InsuranceFee;
-
             // Use a transaction to ensure all operations succeed or all rollback
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -107,9 +103,9 @@ namespace MCS.WebApi.Controllers
                     InsuranceFee = dto.InsuranceFee,
                     IsSavingEnabled = dto.IsSavingEnabled,
                     SavingAmount = dto.SavingAmount,
-                    TotalAmount = totalAmount,
+                    TotalAmount = dto.TotalAmount,
                     Status = "Active",
-                    DisbursementDate = dto.DisbursementDate ?? DateTime.UtcNow, 
+                    DisbursementDate = dto.DisbursementDate,
                     CollectionStartDate = dto.CollectionStartDate,
                     CollectionTerm = dto.CollectionTerm,
                     NoOfTerms = dto.NoOfTerms,
@@ -142,7 +138,7 @@ namespace MCS.WebApi.Controllers
                     amount: loan.LoanAmount,
                     referenceId: loan.Id,
                     transactionType: "Loan disbursement",
-                    comments: $"Loan disbursement for Loan ID: {loan.Id}, Member ID: {loan.MemberId}",
+                    comments: $"Loan disbursement for Loan ID: {loan.Id}, Member ID: {loan.Member.FirstName}",
                     createdBy: userId
                 );
                 _logger.LogInformation($"Recorded loan disbursement of {loan.LoanAmount} for loan {loan.Id}");
@@ -155,7 +151,7 @@ namespace MCS.WebApi.Controllers
                         amount: loan.ProcessingFee,
                         referenceId: loan.Id,
                         transactionType: "Processing fee",
-                        comments: $"Processing fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}",
+                        comments: $"Processing fee for Loan ID: {loan.Id}, from Member ID: {loan.Member.FirstName}",
                         createdBy: userId
                     );
                     _logger.LogInformation($"Recorded processing fee of {loan.ProcessingFee} for loan {loan.Id}");
@@ -169,7 +165,7 @@ namespace MCS.WebApi.Controllers
                         amount: loan.InsuranceFee,
                         referenceId: loan.Id,
                         transactionType: "Insurance fee",
-                        comments: $"Insurance fee for Loan ID: {loan.Id}, from Member ID: {loan.MemberId}",
+                        comments: $"Insurance fee for Loan ID: {loan.Id}, from Member ID: {loan.Member.FirstName}",
                         createdBy: userId
                     );
                     _logger.LogInformation($"Recorded insurance fee of {loan.InsuranceFee} for loan {loan.Id}");
