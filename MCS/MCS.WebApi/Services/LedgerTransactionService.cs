@@ -62,47 +62,37 @@ namespace MCS.WebApi.Services
                 }
             }
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
-
-            try
+            // Create the ledger transaction
+            var ledgerTransaction = new LedgerTransaction
             {
-                // Create the ledger transaction
-                var ledgerTransaction = new LedgerTransaction
-                {
-                    PaidFromUserId = paidFromUserId,
-                    PaidToUserId = paidToUserId,
-                    Amount = amount,
-                    PaymentDate = DateTime.UtcNow,
-                    TransactionType = transactionType,
-                    ReferenceId = referenceId,
-                    Comments = comments,
-                    CreatedBy = createdBy ?? paidFromUserId ?? paidToUserId ?? 0,
-                    CreatedDate = DateTime.UtcNow
-                };
+                PaidFromUserId = paidFromUserId,
+                PaidToUserId = paidToUserId,
+                Amount = amount,
+                PaymentDate = DateTime.UtcNow,
+                TransactionType = transactionType,
+                ReferenceId = referenceId,
+                Comments = comments,
+                CreatedBy = createdBy ?? paidFromUserId ?? paidToUserId ?? 0,
+                CreatedDate = DateTime.UtcNow
+            };
 
-                _context.LedgerTransactions.Add(ledgerTransaction);
+            _context.LedgerTransactions.Add(ledgerTransaction);
 
-                // Update ledger balances
-                if (paidFromUserId.HasValue)
-                {
-                    await UpdateLedgerBalanceAsync(paidFromUserId.Value, -amount); // Debit
-                }
-
-                if (paidToUserId.HasValue)
-                {
-                    await UpdateLedgerBalanceAsync(paidToUserId.Value, amount); // Credit
-                }
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                return ledgerTransaction;
-            }
-            catch
+            // Update ledger balances
+            if (paidFromUserId.HasValue)
             {
-                await transaction.RollbackAsync();
-                throw;
+                await UpdateLedgerBalanceAsync(paidFromUserId.Value, -amount); // Debit
             }
+
+            if (paidToUserId.HasValue)
+            {
+                await UpdateLedgerBalanceAsync(paidToUserId.Value, amount); // Credit
+            }
+
+            // Don't save changes here - let the caller manage the transaction
+            // await _context.SaveChangesAsync();
+
+            return ledgerTransaction;
         }
 
         /// <summary>
@@ -156,7 +146,7 @@ namespace MCS.WebApi.Services
         public async Task<LedgerTransaction> RecordWithdrawalAsync(
             int paidFromUserId,
             decimal amount,
-            string transactionType,
+            string transactionType = "Withdrawal",
             int? referenceId = null,
             string? comments = null,
             int? createdBy = null)
