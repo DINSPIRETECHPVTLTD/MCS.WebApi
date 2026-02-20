@@ -40,6 +40,5 @@ namespace MCS.WebApi.DTOs.Loan
 
         [Required]
         public int NoOfTerms { get; set; }
-
     }
 }
