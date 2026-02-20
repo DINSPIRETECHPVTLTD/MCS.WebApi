@@ -225,22 +225,98 @@ namespace MCS.WebApi.Controllers
                 .Where(ls => ls.LoanId == loanId)
                 .ToListAsync();
 
-                        if (!schedules.Any())
-                        {
-                            return NotFound("No schedules found for this loan");
-                        }
+            if (!schedules.Any())
+            {
+                return NotFound("No schedules found for this loan");
+            }
 
-                        // Check if any payments have been made
-                        var hasPaidSchedules = schedules.Any(s => s.Status == "Paid" || s.Status == "Partial");
-                        if (hasPaidSchedules)
-                        {
-                            return BadRequest("Cannot delete schedules with payments already made");
-                        }
+            // Check if any payments have been made
+            var hasPaidSchedules = schedules.Any(s => s.Status == "Paid" || s.Status == "Partial");
+            if (hasPaidSchedules)
+            {
+                return BadRequest("Cannot delete schedules with payments already made");
+            }
 
-                                    _context.LoanSchedulers.RemoveRange(schedules);
-                                    await _context.SaveChangesAsync();
+            _context.LoanSchedulers.RemoveRange(schedules);
+            await _context.SaveChangesAsync();
 
-                                    return NoContent();
-                                }
-                            }
-                        }
+            return NoContent();
+        }
+
+        // GET: api/LoanSchedulers/recovery
+        // Returns one row per loan (next unpaid installment) for the Recovery Posting grid.
+        [HttpGet("recovery")]
+        public async Task<ActionResult<IEnumerable<MCS.WebApi.DTOs.LoanScheduler.LoanSchedulerRecoveryDto>>> GetLoanSchedulersForRecovery(
+            [FromQuery] DateTime scheduleDate,
+            [FromQuery] int? branchId,
+            [FromQuery] int? centerId,
+            [FromQuery] int? pocId,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 50)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
+
+            // Enforce branch / org access if branch filter is specified
+            if (branchId.HasValue)
+            {
+                if (userType == "Branch")
+                {
+                    if (!user.BranchId.HasValue || user.BranchId.Value != branchId.Value)
+                    {
+                        return Forbid();
+                    }
+                }
+                else if (userType == "Organization")
+                {
+                    var branch = await _context.Branches.FindAsync(branchId.Value);
+                    if (branch == null || branch.OrgId != user.OrgId)
+                    {
+                        return Forbid();
+                    }
+                }
+            }
+
+            var result = await _loanSchedulerService.GetLoanSchedulersForRecoveryAsync(
+                scheduleDate,
+                branchId,
+                centerId,
+                pocId,
+                pageNumber,
+                pageSize);
+
+            Response.Headers["X-Total-Count"] = result.TotalCount.ToString();
+            return Ok(result.Items);
+        }
+
+        // POST: api/LoanSchedulers/save
+        // Single unified endpoint for single-row and bulk posting, using one transaction.
+        [HttpPost("save")]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
+        public async Task<IActionResult> SaveLoanSchedulers([FromBody] List<MCS.WebApi.DTOs.LoanScheduler.LoanSchedulerSaveDto> items)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return BadRequest("No installments provided.");
+            }
+
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+            try
+            {
+                await _loanSchedulerService.SaveAsync(items, userId);
+                return Ok(new { updatedCount = items.Count });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+    }
+}
