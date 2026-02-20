@@ -299,7 +299,7 @@ namespace MCS.WebApi.Data
             // Configure LoanScheduler relationships
             modelBuilder.Entity<LoanScheduler>()
                 .HasOne(ls => ls.Loan)
-                .WithMany()
+                .WithMany(l => l.LoanSchedulers)
                 .HasForeignKey(ls => ls.LoanId)
                 .OnDelete(DeleteBehavior.Restrict);
 

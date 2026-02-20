@@ -394,5 +394,67 @@ namespace MCS.WebApi.Controllers
 
                         return Ok(loanDtos);
                     }
-                }
+
+        // GET: api/Loans/activeloansummary
+        [HttpGet("activeloansummary")]
+        [Authorize(Roles = "BranchAdmin,Staff,Owner")]
+        public async Task<ActionResult<IEnumerable<ActiveLoanSummaryDto>>> GetActiveLoansummary()
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var userType = User.FindFirst("UserType")!.Value;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
             }
+
+            // Get active loans based on user type
+            IQueryable<Loan> activeLoansQuery = _context.Loans
+                .Include(l => l.Member)
+                .ThenInclude(m => m.Center)
+                .ThenInclude(c => c.Branch)
+                .Include(l => l.LoanSchedulers)
+                .Where(l => l.Status == "Active" && !l.IsDeleted);
+
+            if (userType == "Organization")
+            {
+                activeLoansQuery = activeLoansQuery
+                    .Where(l => l.Member.Center.Branch.OrgId == user.OrgId);
+            }
+            else if (userType == "Branch")
+            {
+                if (!user.BranchId.HasValue)
+                {
+                    return Forbid();
+                }
+                activeLoansQuery = activeLoansQuery
+                    .Where(l => l.Member.Center.BranchId == user.BranchId.Value);
+            }
+            else
+            {
+                return Forbid();
+            }
+
+            var activeLoans = await activeLoansQuery.ToListAsync();
+
+            // Map to DTO with scheduler summary
+            var loanSummaries = activeLoans.Select(loan => new ActiveLoanSummaryDto
+            {
+                LoanId = loan.Id,
+                MemberName = $"{loan.Member.FirstName} {loan.Member.LastName}".Trim(),
+                NoOfTerms = loan.NoOfTerms,               
+                TotalAmount = loan.TotalAmount,
+                NumberOfPaidEmis = loan.LoanSchedulers?.Count(ls => ls.Status == "Paid") ?? 0,
+                TotalPaidAmount = loan.LoanSchedulers?
+                    .Where(ls => ls.Status == "Paid")
+                    .Sum(ls => ls.PaymentAmount) ?? 0,
+                TotalUnpaidAmount = loan.LoanSchedulers?
+                    .Where(ls => ls.Status == "Not Paid" || ls.Status == "Partial")
+                    .Sum(ls => ls.PaymentAmount) ?? 0
+            }).ToList();
+
+            return Ok(loanSummaries);
+        }
+    }
+}
