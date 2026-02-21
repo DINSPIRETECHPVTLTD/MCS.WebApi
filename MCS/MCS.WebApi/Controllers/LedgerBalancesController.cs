@@ -47,6 +47,34 @@ namespace MCS.WebApi.Controllers
                 }).ToListAsync();
         }
 
+        [HttpGet("user-transactions/{id}")]
+        [Authorize(Roles = "Owner")]
+        public async Task<ActionResult<IEnumerable<LedgerTransaction>>> GetAllUserTransactions(int id)
+        {
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null || user.Role != UserRole.Owner)
+            {
+                return Forbid();
+            }
+
+            return await _context.LedgerTransactions
+                .AsNoTracking()
+                .Where(l => l.PaidFromUserId == id || l.PaidToUserId == id)
+                .Select(l => new LedgerTransaction
+                {
+                    Id = l.Id,
+                    PaidFromUserId = l.PaidFromUserId,
+                    PaidToUserId = l.PaidToUserId,
+                    TransactionType = l.TransactionType,
+                    PaymentDate = l.PaymentDate,
+                    CreatedBy = l.CreatedBy,
+                    Amount = l.Amount,
+                    CreatedDate = l.CreatedDate
+                }).ToListAsync();
+        }
+
         // GET api/<LedgerBalancesController>/5
         [HttpGet("{id}")]
         public string Get(int id)
@@ -73,7 +101,7 @@ namespace MCS.WebApi.Controllers
 
                 var paidTo = await _context.Users.FindAsync(dto.PaidToUserId);
 
-                string comment = $"Fund Transfer of {dto.Amount} from {paidFrom} to {paidTo}";
+                string comment = $"Fund Transfer of {dto.Amount} from {paidFrom?.FirstName} {paidFrom?.LastName} to {paidTo?.FirstName} {paidTo?.LastName}";
 
                 var ledgerTransaction = await _ledgerTransactionService.RecordTransferAsync(
                     dto.PaidFromUserId,
