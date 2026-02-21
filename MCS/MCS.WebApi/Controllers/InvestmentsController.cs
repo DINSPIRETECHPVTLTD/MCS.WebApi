@@ -84,9 +84,9 @@ namespace MCS.WebApi.Controllers
 
                 _context.Investments.Add(investment);
 
-                var investorName = await _context.Users.FindAsync(dto.UserId);
+                var investor = await _context.Users.FindAsync(dto.UserId);
 
-                string comment = $"Investment of {dto.Amount} from {investorName}";
+                string comment = $"Investment of {dto.Amount} from {investor?.FirstName} {investor?.LastName}";
 
                 await _context.SaveChangesAsync();
 
