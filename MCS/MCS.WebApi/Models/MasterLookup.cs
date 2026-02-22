@@ -9,6 +9,7 @@ namespace MCS.WebApi.Models
         public const string PaymentType = "PAYMENT_TYPE";
         public const string Relationship = "RELATIONSHIP";
         public const string State = "STATE";
+        public const string PaymentMode = "PAYMENTMODE";
     }
 
     [Table("MasterLookups")]
