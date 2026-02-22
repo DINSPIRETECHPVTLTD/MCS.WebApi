@@ -89,8 +89,7 @@ namespace MCS.WebApi.Services
                 await UpdateLedgerBalanceAsync(paidToUserId.Value, amount); // Credit
             }
 
-            // Don't save changes here - let the caller manage the transaction
-            // await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
             return ledgerTransaction;
         }
