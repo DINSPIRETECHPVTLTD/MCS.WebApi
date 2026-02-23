@@ -253,7 +253,7 @@ namespace MCS.WebApi.Controllers
             [FromQuery] int? pocId,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 50)
-        {
+         {
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var userType = User.FindFirst("UserType")!.Value;
             var user = await _context.Users.FindAsync(userId);
