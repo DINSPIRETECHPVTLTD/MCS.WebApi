@@ -21,17 +21,18 @@ namespace MCS.WebApi.DTOs.LoanScheduler
         [StringLength(50)]
         public string PaymentMode { get; set; } = string.Empty;
 
+        /// <summary>User-entered payment amount; posted to PaymentAmount. Interest/Principal calculated and posted to respective columns.</summary>
         [Required]
         [Range(0, double.MaxValue)]
-        public decimal ActualEmiAmount { get; set; }
+        public decimal PaymentAmount { get; set; }
 
         [Required]
         [Range(0, double.MaxValue)]
-        public decimal ActualInterestAmount { get; set; }
+        public decimal PrincipalAmount { get; set; }
 
         [Required]
         [Range(0, double.MaxValue)]
-        public decimal ActualPrincipalAmount { get; set; }
+        public decimal InterestAmount { get; set; }
 
         /// <summary>Required when Status is Partial Paid; optional when Paid.</summary>
         [StringLength(500)]

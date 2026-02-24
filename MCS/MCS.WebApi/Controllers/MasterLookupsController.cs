@@ -21,6 +21,21 @@ namespace MCS.WebApi.Controllers
         }
 
         /// <summary>
+        /// GET: api/MasterLookups/keys - Returns valid LookupKey values for the Add Master Lookup dropdown.
+        /// </summary>
+        [HttpGet("keys")]
+        public ActionResult<IEnumerable<string>> GetLookupKeys()
+        {
+            return new[] {
+                LookupKeys.LoanTerm,
+                LookupKeys.PaymentType,
+                LookupKeys.Relationship,
+                LookupKeys.State,
+                LookupKeys.PaymentMode
+            };
+        }
+
+        /// <summary>
         /// GET: api/MasterLookups
         /// </summary>
         [HttpGet]
