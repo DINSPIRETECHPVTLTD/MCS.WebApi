@@ -34,7 +34,7 @@ namespace MCS.WebApi.DTOs.LoanScheduler
         [Range(0, double.MaxValue)]
         public decimal InterestAmount { get; set; }
 
-        /// <summary>Required when Status is Partial Paid; optional when Paid.</summary>
+        /// <summary>Optional comments for posting (not mandatory).</summary>
         [StringLength(500)]
         public string? Comments { get; set; }
 
