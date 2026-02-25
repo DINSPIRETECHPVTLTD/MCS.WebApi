@@ -23,6 +23,7 @@ namespace MCS.WebApi.DTOs.LoanScheduler
         public string ParentPocName { get; set; } = string.Empty;
 
         public DateTime ScheduleDate { get; set; }
+        public DateTime? PaymentDate { get; set; }
 
         public int InstallmentNo { get; set; }
 

@@ -64,7 +64,7 @@ namespace MCS.WebApi.Services
                 {
                     LoanId = loanId,
                     ScheduleDate = currentDate,
-                    PaymentDate = new DateTime(9999, 1, 1),
+                    PaymentDate = null,
                     PaymentAmount = 0,
                     SavingAmount = loan.IsSavingEnabled ? Math.Round(loan.SavingAmount / loan.NoOfTerms, 2) : 0,
                     PrincipalAmount = 0,
@@ -136,7 +136,9 @@ namespace MCS.WebApi.Services
                     ls.ScheduleDate >= startDate &&
                     ls.ScheduleDate < endDate &&
                     ls.Status != "Paid" &&
-                    ls.PaymentDate == default) // default(DateTime) == not yet posted
+                    // Unpaid/not-yet-posted: null PaymentDate.
+                    // Keep backward compatibility for older sentinel values already in DB.
+                    (ls.PaymentDate == null || ls.PaymentDate.Value.Year == 9999))
                 .ToListAsync();
 
             // Apply branch / center / POC filters in memory (after includes).
@@ -204,13 +206,20 @@ namespace MCS.WebApi.Services
                 decimal? actualInterest = ls.ActualInterestAmount > 0 ? ls.ActualInterestAmount : (decimal?)null;
                 decimal? actualPrincipal = ls.ActualPrincipalAmount > 0 ? ls.ActualPrincipalAmount : (decimal?)null;
 
-                // Percentages for partial EMI split (from this installment's scheduled split).
+                // Base schedule amounts for this installment:
+                // - When PaymentAmount/PrincipalAmount/InterestAmount have been set/adjusted (e.g. via carry-forward), use them.
+                // - Otherwise fall back to the original schedule stored in ActualEmiAmount/ActualPrincipalAmount/ActualInterestAmount.
+                decimal baseTotal = ls.PaymentAmount > 0 ? ls.PaymentAmount : ls.ActualEmiAmount;
+                decimal basePrincipal = ls.PaymentAmount > 0 ? ls.PrincipalAmount : ls.ActualPrincipalAmount;
+                decimal baseInterest = ls.PaymentAmount > 0 ? ls.InterestAmount : ls.ActualInterestAmount;
+
+                // Percentages for partial EMI split – MUST match how schedule was originally created.
                 decimal principalPct = 0;
                 decimal interestPct = 0;
-                if (ls.PaymentAmount > 0)
+                if (baseTotal > 0)
                 {
-                    principalPct = Math.Round((ls.PrincipalAmount / ls.PaymentAmount) * 100, 2);
-                    interestPct = Math.Round((ls.InterestAmount / ls.PaymentAmount) * 100, 2);
+                    principalPct = Math.Round((basePrincipal / baseTotal) * 100, 2);
+                    interestPct = Math.Round((baseInterest / baseTotal) * 100, 2);
                 }
 
                 return new LoanSchedulerRecoveryDto
@@ -223,11 +232,12 @@ namespace MCS.WebApi.Services
                     ParentPocName = pocName,
                     ScheduleDate = ls.ScheduleDate,
                     InstallmentNo = ls.InstallmentNo,
-                    InterestAmount = ls.InterestAmount,
-                    PrincipalAmount = ls.PrincipalAmount,
-                    PaymentAmount = ls.PaymentAmount,
+                    // Use base* so grid sees the same split that was used when creating the loan / adjusting EMIs.
+                    InterestAmount = baseInterest,
+                    PrincipalAmount = basePrincipal,
+                    PaymentAmount = baseTotal,
                     Status = ls.Status,
-                    Due = ls.PaymentAmount,
+                    Due = baseTotal,
                     ActualEmiAmount = actualEmi,
                     ActualInterestAmount = actualInterest,
                     ActualPrincipalAmount = actualPrincipal,
@@ -258,6 +268,9 @@ namespace MCS.WebApi.Services
 
             try
             {
+                // Use single timestamp for entire post request so all rows get same PaymentDate
+                var postRequestDateTime = DateTime.UtcNow;
+
                 foreach (var dto in list)
                 {
                     var schedule = await _context.LoanSchedulers
@@ -271,30 +284,32 @@ namespace MCS.WebApi.Services
                         throw new InvalidOperationException($"Schedule {dto.LoanSchedulerId} not found.");
                     }
 
-                    // Prevent updating already paid/posted records.
-                    if (schedule.Status == "Paid" || schedule.PaymentDate != default)
+                    // Prevent updating only when DB status is already Paid.
+                    if (string.Equals(schedule.Status?.Trim(), "Paid", StringComparison.OrdinalIgnoreCase))
                     {
                         throw new InvalidOperationException($"Schedule {schedule.LoanSchedulerId} is already paid or posted.");
                     }
 
-                    if (dto.ActualEmiAmount < 0 ||
-                        dto.ActualInterestAmount < 0 ||
-                        dto.ActualPrincipalAmount < 0)
+                    if (dto.PaymentAmount < 0 ||
+                        dto.PrincipalAmount < 0 ||
+                        dto.InterestAmount < 0)
                     {
                         throw new InvalidOperationException("Amounts cannot be negative.");
                     }
 
-                    if (dto.ActualEmiAmount > schedule.PaymentAmount)
+                    // Scheduled amount (from DB) for comparison; Actual* columns are not updated on post
+                    decimal scheduledAmount = schedule.ActualEmiAmount;
+                    if (dto.PaymentAmount > scheduledAmount)
                     {
-                        throw new InvalidOperationException("Actual EMI amount cannot exceed scheduled payment amount.");
+                        throw new InvalidOperationException("Payment amount cannot exceed scheduled amount.");
                     }
 
-                    // If user selected Status = Paid, Actual Paid Amount must match Payment Amount
+                    // If user selected Status = Paid, payment amount must match scheduled amount
                     if (string.Equals(dto.Status, "Paid", StringComparison.OrdinalIgnoreCase) &&
-                        Math.Abs(dto.ActualEmiAmount - schedule.PaymentAmount) > 0.01m)
+                        Math.Abs(dto.PaymentAmount - scheduledAmount) > 0.01m)
                     {
                         throw new InvalidOperationException(
-                            "Actual Paid Amount does not match Payment Amount. Change status to Partial Paid.");
+                            "For Status Paid, payment amount must match scheduled amount. Change status to Partial Paid.");
                     }
 
                     // Comment is required when Status is Partial Paid; not required when Paid
@@ -304,28 +319,27 @@ namespace MCS.WebApi.Services
                         throw new InvalidOperationException("Comment is required.");
                     }
 
-                    // Re-calculate actual principal and interest from ActualEmiAmount and schedule ratio (so they sum exactly to ActualEmiAmount).
-                    decimal recalcActualPrincipal = schedule.PaymentAmount > 0
-                        ? Math.Round(dto.ActualEmiAmount * (schedule.PrincipalAmount / schedule.PaymentAmount), 2)
-                        : 0;
-                    decimal recalcActualInterest = Math.Round(dto.ActualEmiAmount - recalcActualPrincipal, 2);
-
-                    // Update main schedule fields.
+                    // Post only: PaymentDate (current post request date/time), PaymentAmount, PrincipalAmount, InterestAmount, PaymentMode, Status, Comments, CollectedBy. Do NOT update Actual*, LoanId, LoanSchedulerId, InstallmentNo, ScheduleDate, CreatedBy, CreatedDate.
+                    schedule.PaymentDate = postRequestDateTime;
+                    schedule.PaymentAmount = dto.PaymentAmount;
+                    schedule.PrincipalAmount = dto.PrincipalAmount;
+                    schedule.InterestAmount = dto.InterestAmount;
                     schedule.PaymentMode = dto.PaymentMode;
-                    schedule.Comments = dto.Comments;
+                    schedule.Comments = dto.Comments ?? string.Empty;
                     schedule.CollectedBy = dto.CollectedBy ?? currentUserId;
-                    schedule.ActualEmiAmount = dto.ActualEmiAmount;
-                    schedule.ActualInterestAmount = recalcActualInterest;
-                    schedule.ActualPrincipalAmount = recalcActualPrincipal;
-                    schedule.PaymentDate = DateTime.UtcNow;
 
-                    // Determine new status and carry-forward.
-                    decimal difference = schedule.PaymentAmount - dto.ActualEmiAmount;
-                    if (difference == 0)
+                    // Difference amounts between scheduled (Actual*) and posted amounts.
+                    // Null-safe by design (all decimal non-nullable on entity/DTO), and clamped to 0.
+                    decimal differenceAmount = Math.Max(0, schedule.ActualEmiAmount - dto.PaymentAmount);
+                    decimal differencePrincipalAmount = Math.Max(0, schedule.ActualPrincipalAmount - dto.PrincipalAmount);
+                    decimal differenceInterestAmount = Math.Max(0, schedule.ActualInterestAmount - dto.InterestAmount);
+
+                    // Carry-forward to immediate next unpaid installment.
+                    if (differenceAmount == 0)
                     {
                         schedule.Status = "Paid";
                     }
-                    else if (difference > 0)
+                    else if (differenceAmount > 0)
                     {
                         schedule.Status = "Partial";
 
@@ -335,7 +349,7 @@ namespace MCS.WebApi.Services
                                 ls.LoanId == schedule.LoanId &&
                                 ls.InstallmentNo > schedule.InstallmentNo &&
                                 ls.Status != "Paid" &&
-                                ls.PaymentDate == default)
+                                (ls.PaymentDate == null || ls.PaymentDate.Value.Year == 9999))
                             .OrderBy(ls => ls.InstallmentNo)
                             .FirstOrDefaultAsync();
 
@@ -345,22 +359,18 @@ namespace MCS.WebApi.Services
                                 $"No next installment found to carry forward remaining amount for loan {schedule.LoanId}.");
                         }
 
-                        // Add difference to next EMI and recalculate PrincipalAmount and InterestAmount by same ratio
-                        decimal newPaymentAmount = nextSchedule.PaymentAmount + difference;
-                        decimal nextPrincipalPct = nextSchedule.PaymentAmount > 0
-                            ? (nextSchedule.PrincipalAmount / nextSchedule.PaymentAmount) * 100
-                            : 0;
-                        decimal nextInterestPct = nextSchedule.PaymentAmount > 0
-                            ? (nextSchedule.InterestAmount / nextSchedule.PaymentAmount) * 100
-                            : 0;
-                        nextSchedule.PaymentAmount = Math.Round(newPaymentAmount, 2);
-                        nextSchedule.PrincipalAmount = Math.Round((newPaymentAmount * nextPrincipalPct) / 100, 2);
-                        nextSchedule.InterestAmount = Math.Round(newPaymentAmount - nextSchedule.PrincipalAmount, 2);
+                        // Add Difference* to next EMI Actual* columns (business logic unchanged, column names updated).
+                        // 1) DifferenceAmount -> next ActualEmiAmount
+                        nextSchedule.ActualEmiAmount = Math.Round(nextSchedule.ActualEmiAmount + differenceAmount, 2);
+                        // 2) DifferenceInterestAmount -> next ActualInterestAmount
+                        nextSchedule.ActualInterestAmount = Math.Round(nextSchedule.ActualInterestAmount + differenceInterestAmount, 2);
+                        // 3) DifferencePrincipalAmount -> next ActualPrincipalAmount
+                        nextSchedule.ActualPrincipalAmount = Math.Round(nextSchedule.ActualPrincipalAmount + differencePrincipalAmount, 2);
                     }
                     else
                     {
                         // Should not happen because of earlier validation.
-                        throw new InvalidOperationException("Actual EMI amount is greater than scheduled payment.");
+                        throw new InvalidOperationException("Payment amount is greater than scheduled payment.");
                     }
                 }
 

@@ -15,8 +15,7 @@ namespace MCS.WebApi.Models
         [Required]
         public DateTime ScheduleDate { get; set; }
 
-        [Required]
-        public DateTime PaymentDate { get; set; }
+        public DateTime? PaymentDate { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal ActualEmiAmount { get; set; }
@@ -38,7 +37,6 @@ namespace MCS.WebApi.Models
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal InterestAmount { get; set; }
-
 
         [Required]
         public int InstallmentNo { get; set; }
