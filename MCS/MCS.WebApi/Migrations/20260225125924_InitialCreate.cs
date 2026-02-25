@@ -12,6 +12,52 @@ namespace MCS.WebApi.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "MasterLookups",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    LookupKey = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    LookupCode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    LookupValue = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    NumericValue = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    UpdatedOn = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UpdatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MasterLookups", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PaymentTerms",
+                columns: table => new
+                {
+                    PaymentTermID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PaymentTerm = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    PaymentType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    NoOfTerms = table.Column<int>(type: "int", nullable: false),
+                    ProcessingFee = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    RateOfInterest = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    InsuranceFee = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedBy = table.Column<int>(type: "int", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PaymentTerms", x => x.PaymentTermID);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Branchs",
                 columns: table => new
                 {
@@ -65,32 +111,55 @@ namespace MCS.WebApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "LoanPayments",
+                name: "Investments",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    LoanId = table.Column<int>(type: "int", nullable: false),
-                    SavingAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
-                    PrincipalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    InterestAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    PenaltyAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    ActualPaymentDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    PaymentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    InstallmentNo = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    PaymentMode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    ReceivedBy = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    Comments = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    CreatedBy = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ModifiedBy = table.Column<int>(type: "int", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    InvestmentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedById = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_LoanPayments", x => x.Id);
+                    table.PrimaryKey("PK_Investments", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Ledgers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Ledgers", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LedgerTransactions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PaidFromUserId = table.Column<int>(type: "int", nullable: true),
+                    PaidToUserId = table.Column<int>(type: "int", nullable: true),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    PaymentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TransactionType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    ReferenceId = table.Column<int>(type: "int", maxLength: 100, nullable: true),
+                    Comments = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LedgerTransactions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -99,7 +168,6 @@ namespace MCS.WebApi.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    LoanCode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     MemberId = table.Column<int>(type: "int", nullable: false),
                     LoanAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     InterestAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
@@ -108,10 +176,12 @@ namespace MCS.WebApi.Migrations
                     IsSavingEnabled = table.Column<bool>(type: "bit", nullable: false),
                     SavingAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    OutstandingAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     DisbursementDate = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ClosureDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CollectionStartDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CollectionTerm = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    NoOfTerms = table.Column<int>(type: "int", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedBy = table.Column<int>(type: "int", nullable: true),
@@ -121,6 +191,64 @@ namespace MCS.WebApi.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Loans", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "LoanSchedulers",
+                columns: table => new
+                {
+                    LoanSchedulerId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    LoanId = table.Column<int>(type: "int", nullable: false),
+                    ScheduleDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PaymentDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ActualEmiAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    ActualPrincipalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    ActualInterestAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    PaymentAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    SavingAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    PrincipalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    InterestAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    InstallmentNo = table.Column<int>(type: "int", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    PaymentMode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    CollectedBy = table.Column<int>(type: "int", nullable: true),
+                    Comments = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LoanSchedulers", x => x.LoanSchedulerId);
+                    table.ForeignKey(
+                        name: "FK_LoanSchedulers_Loans_LoanId",
+                        column: x => x.LoanId,
+                        principalTable: "Loans",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MemberMembershipFees",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MemberId = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    PaidDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CollectedBy = table.Column<int>(type: "int", nullable: true),
+                    PaymentMode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Comments = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ModifiedBy = table.Column<int>(type: "int", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MemberMembershipFees", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -267,6 +395,9 @@ namespace MCS.WebApi.Migrations
                     ZipCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     CenterId = table.Column<int>(type: "int", nullable: false),
                     CreatedBy = table.Column<int>(type: "int", nullable: false),
+                    CollectionDay = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
+                    CollectionFrequency = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    CollectionBy = table.Column<int>(type: "int", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedBy = table.Column<int>(type: "int", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -281,6 +412,12 @@ namespace MCS.WebApi.Migrations
                         principalTable: "Centers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_POCs_Users_CollectionBy",
+                        column: x => x.CollectionBy,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_POCs_Users_CreatedBy",
                         column: x => x.CreatedBy,
@@ -326,19 +463,34 @@ namespace MCS.WebApi.Migrations
                 column: "ModifiedBy");
 
             migrationBuilder.CreateIndex(
-                name: "IX_LoanPayments_CreatedBy",
-                table: "LoanPayments",
+                name: "IX_Investments_CreatedById",
+                table: "Investments",
+                column: "CreatedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Investments_UserId",
+                table: "Investments",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Ledgers_UserId",
+                table: "Ledgers",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LedgerTransactions_CreatedBy",
+                table: "LedgerTransactions",
                 column: "CreatedBy");
 
             migrationBuilder.CreateIndex(
-                name: "IX_LoanPayments_LoanId",
-                table: "LoanPayments",
-                column: "LoanId");
+                name: "IX_LedgerTransactions_PaidFromUserId",
+                table: "LedgerTransactions",
+                column: "PaidFromUserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_LoanPayments_ModifiedBy",
-                table: "LoanPayments",
-                column: "ModifiedBy");
+                name: "IX_LedgerTransactions_PaidToUserId",
+                table: "LedgerTransactions",
+                column: "PaidToUserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Loans_CreatedBy",
@@ -353,6 +505,47 @@ namespace MCS.WebApi.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_Loans_ModifiedBy",
                 table: "Loans",
+                column: "ModifiedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LoanSchedulers_CollectedBy",
+                table: "LoanSchedulers",
+                column: "CollectedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LoanSchedulers_CreatedBy",
+                table: "LoanSchedulers",
+                column: "CreatedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LoanSchedulers_LoanId",
+                table: "LoanSchedulers",
+                column: "LoanId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MasterLookups_LookupKey_LookupCode",
+                table: "MasterLookups",
+                columns: new[] { "LookupKey", "LookupCode" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MemberMembershipFees_CollectedBy",
+                table: "MemberMembershipFees",
+                column: "CollectedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MemberMembershipFees_CreatedBy",
+                table: "MemberMembershipFees",
+                column: "CreatedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MemberMembershipFees_MemberId",
+                table: "MemberMembershipFees",
+                column: "MemberId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MemberMembershipFees_ModifiedBy",
+                table: "MemberMembershipFees",
                 column: "ModifiedBy");
 
             migrationBuilder.CreateIndex(
@@ -389,6 +582,11 @@ namespace MCS.WebApi.Migrations
                 name: "IX_POCs_CenterId",
                 table: "POCs",
                 column: "CenterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_POCs_CollectionBy",
+                table: "POCs",
+                column: "CollectionBy");
 
             migrationBuilder.CreateIndex(
                 name: "IX_POCs_CreatedBy",
@@ -466,25 +664,49 @@ namespace MCS.WebApi.Migrations
                 principalColumn: "Id");
 
             migrationBuilder.AddForeignKey(
-                name: "FK_LoanPayments_Loans_LoanId",
-                table: "LoanPayments",
-                column: "LoanId",
-                principalTable: "Loans",
+                name: "FK_Investments_Users_CreatedById",
+                table: "Investments",
+                column: "CreatedById",
+                principalTable: "Users",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_LoanPayments_Users_CreatedBy",
-                table: "LoanPayments",
+                name: "FK_Investments_Users_UserId",
+                table: "Investments",
+                column: "UserId",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_Ledgers_Users_UserId",
+                table: "Ledgers",
+                column: "UserId",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_LedgerTransactions_Users_CreatedBy",
+                table: "LedgerTransactions",
                 column: "CreatedBy",
                 principalTable: "Users",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_LoanPayments_Users_ModifiedBy",
-                table: "LoanPayments",
-                column: "ModifiedBy",
+                name: "FK_LedgerTransactions_Users_PaidFromUserId",
+                table: "LedgerTransactions",
+                column: "PaidFromUserId",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_LedgerTransactions_Users_PaidToUserId",
+                table: "LedgerTransactions",
+                column: "PaidToUserId",
                 principalTable: "Users",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
@@ -508,6 +730,54 @@ namespace MCS.WebApi.Migrations
             migrationBuilder.AddForeignKey(
                 name: "FK_Loans_Users_ModifiedBy",
                 table: "Loans",
+                column: "ModifiedBy",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_LoanSchedulers_Users_CollectedBy",
+                table: "LoanSchedulers",
+                column: "CollectedBy",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_LoanSchedulers_Users_CreatedBy",
+                table: "LoanSchedulers",
+                column: "CreatedBy",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_MemberMembershipFees_Members_MemberId",
+                table: "MemberMembershipFees",
+                column: "MemberId",
+                principalTable: "Members",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_MemberMembershipFees_Users_CollectedBy",
+                table: "MemberMembershipFees",
+                column: "CollectedBy",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_MemberMembershipFees_Users_CreatedBy",
+                table: "MemberMembershipFees",
+                column: "CreatedBy",
+                principalTable: "Users",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_MemberMembershipFees_Users_ModifiedBy",
+                table: "MemberMembershipFees",
                 column: "ModifiedBy",
                 principalTable: "Users",
                 principalColumn: "Id",
@@ -574,7 +844,25 @@ namespace MCS.WebApi.Migrations
                 table: "Branchs");
 
             migrationBuilder.DropTable(
-                name: "LoanPayments");
+                name: "Investments");
+
+            migrationBuilder.DropTable(
+                name: "Ledgers");
+
+            migrationBuilder.DropTable(
+                name: "LedgerTransactions");
+
+            migrationBuilder.DropTable(
+                name: "LoanSchedulers");
+
+            migrationBuilder.DropTable(
+                name: "MasterLookups");
+
+            migrationBuilder.DropTable(
+                name: "MemberMembershipFees");
+
+            migrationBuilder.DropTable(
+                name: "PaymentTerms");
 
             migrationBuilder.DropTable(
                 name: "Loans");
