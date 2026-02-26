@@ -62,6 +62,7 @@ namespace MCS.WebApi.Controllers
             return await _context.LedgerTransactions
                 .AsNoTracking()
                 .Where(l => l.PaidFromUserId == id || l.PaidToUserId == id)
+                .OrderByDescending(l => l.PaymentDate)
                 .Select(l => new LedgerTransaction
                 {
                     Id = l.Id,

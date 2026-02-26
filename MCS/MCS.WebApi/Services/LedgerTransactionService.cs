@@ -169,6 +169,36 @@ namespace MCS.WebApi.Services
         }
 
         /// <summary>
+        /// Records a Expense from a user's account
+        /// </summary>
+
+        public async Task<LedgerTransaction> RecordExpenseAsync(
+           int paidFromUserId,
+           decimal amount,
+           string transactionType = "Expense",
+           int? referenceId = null,
+           string? comments = null,
+           int? createdBy = null)
+        {
+            // Check if user has sufficient balance
+            var ledger = await GetOrCreateLedgerAsync(paidFromUserId);
+            if (ledger.Amount < amount)
+            {
+                throw new InvalidOperationException($"Insufficient balance. Available: {ledger.Amount}, Required: {amount}");
+            }
+
+            return await CreateTransactionAsync(
+                paidFromUserId: paidFromUserId,
+                paidToUserId: null, // No to user for withdrawals
+                amount: amount,
+                transactionType: transactionType,
+                referenceId: referenceId,
+                comments: comments,
+                createdBy: createdBy
+            );
+        }
+
+        /// <summary>
         /// Records a transfer between two users
         /// </summary>
         public async Task<LedgerTransaction> RecordTransferAsync(
