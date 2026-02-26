@@ -18,10 +18,10 @@ namespace MCS.WebApi.Controllers
             _context = context;
         }
 
-        // GET: api/Centers
-        // Returns all non-deleted centers in the user's organization (all branches) so the View Centers table shows full data.
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Center>>> GetCenters()
+        // GET: api/Centers/{branchId}
+        // Returns all non-deleted centers for a specific branch in the user's organization.
+        [HttpGet("{branchId}")]
+        public async Task<ActionResult<IEnumerable<Center>>> GetCenters(int branchId)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var user = await _context.Users.FindAsync(userId);
@@ -31,15 +31,22 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
+            // Validate that the branch exists and belongs to the user's organization
+            var branch = await _context.Branches.FindAsync(branchId);
+            if (branch == null || branch.OrgId != user.OrgId)
+            {
+                return NotFound("Branch not found or does not belong to your organization.");
+            }
+
             return await _context.Centers
                 .Include(c => c.Branch)
-                .Where(c => !c.IsDeleted && c.Branch != null && c.Branch.OrgId == user.OrgId)
+                .Where(c => !c.IsDeleted && c.BranchId == branchId)
                 .OrderBy(c => c.Id)
                 .ToListAsync();
         }
 
-        // GET: api/Centers/5
-        [HttpGet("{id}")]
+        // GET: api/Centers/detail/{id}
+        [HttpGet("detail/{id}")]
         public async Task<ActionResult<Center>> GetCenter(int id)
         {
             var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
@@ -107,7 +114,7 @@ namespace MCS.WebApi.Controllers
             _context.Centers.Add(center);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetCenter", new { id = center.Id }, center);
+            return Ok(center);
         }
 
         // PUT: api/Centers/5
