@@ -138,7 +138,9 @@ namespace MCS.WebApi.Services
             int? centerId,
             int? pocId,
             int pageNumber,
-            int pageSize)
+            int pageSize,
+            string userType,
+            int? orgId)
         {
             if (pageNumber <= 0) pageNumber = 1;
             if (pageSize <= 0) pageSize = 50;
@@ -167,6 +169,31 @@ namespace MCS.WebApi.Services
                 .ToListAsync();
 
             // Apply branch / center / POC filters in memory (after includes).
+            // Tenant isolation: enforce org/branch scope regardless of provided query.
+            if (string.Equals(userType, "Branch", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!branchId.HasValue)
+                {
+                    return (Array.Empty<LoanSchedulerRecoveryDto>(), 0);
+                }
+                filteredList = filteredList
+                    .Where(ls => ls.Loan.Member.Center.BranchId == branchId.Value)
+                    .ToList();
+            }
+            else if (string.Equals(userType, "Organization", StringComparison.OrdinalIgnoreCase))
+            {
+                if (orgId.HasValue)
+                {
+                    filteredList = filteredList
+                        .Where(ls => ls.Loan.Member.Center.Branch.OrgId == orgId.Value)
+                        .ToList();
+                }
+            }
+            else
+            {
+                return (Array.Empty<LoanSchedulerRecoveryDto>(), 0);
+            }
+
             if (branchId.HasValue)
             {
                 filteredList = filteredList
@@ -279,7 +306,12 @@ namespace MCS.WebApi.Services
         /// Saves one or more loan scheduler installments (single or bulk) in a single database transaction,
         /// applying partial-paid carry-forward rules.
         /// </summary>
-        public async Task SaveAsync(IEnumerable<LoanSchedulerSaveDto> items, int currentUserId)
+        public async Task SaveAsync(
+            IEnumerable<LoanSchedulerSaveDto> items,
+            int currentUserId,
+            string userType,
+            int? orgId,
+            int? branchId)
         {
             if (items == null) throw new ArgumentNullException(nameof(items));
 
@@ -288,6 +320,20 @@ namespace MCS.WebApi.Services
             {
                 throw new InvalidOperationException("No installments provided to save.");
             }
+
+            // Request-level safety: reject duplicate scheduler ids in same bulk post.
+            var distinctCount = list.Select(x => x.LoanSchedulerId).Distinct().Count();
+            if (distinctCount != list.Count)
+            {
+                throw new InvalidOperationException("Duplicate LoanSchedulerId found in request payload.");
+            }
+
+            // Load valid payment modes once per request (fintech contract integrity).
+            // Backward-compatible: accept either LookupValue or LookupCode. If there are no PAYMENTMODE rows configured, we won't block.
+            var paymentModeLookups = await _context.MasterLookups
+                .Where(m => m.LookupKey == LookupKeys.PaymentMode && m.IsActive)
+                .Select(m => new { m.LookupCode, m.LookupValue })
+                .ToListAsync();
 
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -302,11 +348,18 @@ namespace MCS.WebApi.Services
                         .Include(ls => ls.Loan)
                             .ThenInclude(l => l.Member)
                                 .ThenInclude(m => m.Center)
+                                    .ThenInclude(c => c.Branch)
                         .FirstOrDefaultAsync(ls => ls.LoanSchedulerId == dto.LoanSchedulerId);
 
                     if (schedule == null)
                     {
                         throw new InvalidOperationException($"Schedule {dto.LoanSchedulerId} not found.");
+                    }
+
+                    // Replay protection: reject any already-posted schedule (even if status isn't Paid).
+                    if (schedule.PaymentDate.HasValue && schedule.PaymentDate.Value.Year != 9999)
+                    {
+                        throw new InvalidOperationException($"Schedule {schedule.LoanSchedulerId} is already posted.");
                     }
 
                     // Prevent updating only when DB status is already Paid.
@@ -315,18 +368,62 @@ namespace MCS.WebApi.Services
                         throw new InvalidOperationException($"Schedule {schedule.LoanSchedulerId} is already paid or posted.");
                     }
 
-                    if (dto.PaymentAmount < 0 ||
-                        dto.PrincipalAmount < 0 ||
-                        dto.InterestAmount < 0)
+                    // Round monetary values to 2 decimals BEFORE any validation.
+                    var paymentAmount = Math.Round(dto.PaymentAmount, 2, MidpointRounding.AwayFromZero);
+                    if (paymentAmount < 0)
                     {
                         throw new InvalidOperationException("Amounts cannot be negative.");
                     }
 
-                    var requestedStatus = NormalizeRequestedStatus(dto.Status);
+                    // Authorization: enforce resource-level access for each schedule being posted.
+                    // Branch user can only post within their branch. Organization user can only post within their organization.
+                    if (string.Equals(userType, "Branch", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!branchId.HasValue || schedule.Loan.Member.Center.BranchId != branchId.Value)
+                        {
+                            throw new InvalidOperationException("Unauthorized: cannot post installments outside your branch.");
+                        }
+                    }
+                    else if (string.Equals(userType, "Organization", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!orgId.HasValue || schedule.Loan.Member.Center.Branch.OrgId != orgId.Value)
+                        {
+                            throw new InvalidOperationException("Unauthorized: cannot post installments outside your organization.");
+                        }
+                    }
+
+                    var scheduledAmount = Math.Round(schedule.ActualEmiAmount, 2, MidpointRounding.AwayFromZero);
+
+                    // Normalize status in a non-ambiguous way.
+                    // Backward-compatible: if status is omitted, derive from payment vs scheduled amounts.
+                    var requestedStatus = NormalizeOrDeriveRequestedStatus(dto.Status, paymentAmount, scheduledAmount);
+
+                    // Contract: For Paid/Partial, payment must be strictly > 0.
+                    if (requestedStatus != "Not Paid" && paymentAmount <= 0)
+                    {
+                        throw new InvalidOperationException("For Paid/Partial Paid, PaymentAmount must be greater than 0.");
+                    }
+
+                    // DO NOT trust client principal/interest split.
+                    // Compute split server-side using schedule ratio, then enforce invariants on computed values.
+                    decimal principalRatio = 0m;
+                    if (scheduledAmount > 0 && schedule.ActualPrincipalAmount > 0)
+                    {
+                        principalRatio = schedule.ActualPrincipalAmount / scheduledAmount;
+                    }
+                    var principalAmount = Math.Round(paymentAmount * principalRatio, 2, MidpointRounding.AwayFromZero);
+                    var interestAmount = paymentAmount - principalAmount; // stays 2 decimals since both are 2 decimals
+
+                    // Fintech invariant: Principal + Interest must equal PaymentAmount (after rounding).
+                    if (Math.Abs((principalAmount + interestAmount) - paymentAmount) > 0.00m)
+                    {
+                        throw new InvalidOperationException("PrincipalAmount + InterestAmount must equal PaymentAmount.");
+                    }
+
                     var paymentMode = (dto.PaymentMode ?? string.Empty).Trim();
                     if (requestedStatus == "Not Paid")
                     {
-                        if (dto.PaymentAmount != 0 || dto.PrincipalAmount != 0 || dto.InterestAmount != 0)
+                        if (paymentAmount != 0)
                         {
                             throw new InvalidOperationException("For Status Not Paid, Payment/Principal/Interest amounts must be 0.");
                         }
@@ -337,6 +434,8 @@ namespace MCS.WebApi.Services
                         }
 
                         paymentMode = "N/A";
+                        principalAmount = 0;
+                        interestAmount = 0;
                     }
                     else
                     {
@@ -349,18 +448,32 @@ namespace MCS.WebApi.Services
                         {
                             throw new InvalidOperationException("Payment mode cannot be N/A for Paid/Partial Paid.");
                         }
+
+                        // Normalize PaymentMode against MasterLookups if configured.
+                        if (paymentModeLookups.Count > 0)
+                        {
+                            var match = paymentModeLookups.FirstOrDefault(m =>
+                                string.Equals(m.LookupValue, paymentMode, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(m.LookupCode, paymentMode, StringComparison.OrdinalIgnoreCase));
+
+                            if (match == null)
+                            {
+                                throw new InvalidOperationException("Invalid payment mode.");
+                            }
+
+                            // Store lookup VALUE consistently (frontend displays value).
+                            paymentMode = match.LookupValue;
+                        }
                     }
 
-                    // Scheduled amount (from DB) for comparison; Actual* columns are not updated on post
-                    decimal scheduledAmount = schedule.ActualEmiAmount;
-                    if (dto.PaymentAmount > scheduledAmount)
+                    if (paymentAmount > scheduledAmount)
                     {
                         throw new InvalidOperationException("Payment amount cannot exceed scheduled amount.");
                     }
 
                     // If user selected Status = Paid, payment amount must match scheduled amount
-                    if (string.Equals(dto.Status, "Paid", StringComparison.OrdinalIgnoreCase) &&
-                        Math.Abs(dto.PaymentAmount - scheduledAmount) > 0.01m)
+                    if (string.Equals((dto.Status ?? string.Empty).Trim(), "Paid", StringComparison.OrdinalIgnoreCase) &&
+                        Math.Abs(paymentAmount - scheduledAmount) > 0.01m)
                     {
                         throw new InvalidOperationException(
                             "For Status Paid, payment amount must match scheduled amount. Change status to Partial Paid.");
@@ -368,18 +481,18 @@ namespace MCS.WebApi.Services
 
                     // Post only: PaymentDate (current post request date/time), PaymentAmount, PrincipalAmount, InterestAmount, PaymentMode, Status, Comments, CollectedBy. Do NOT update Actual*, LoanId, LoanSchedulerId, InstallmentNo, ScheduleDate, CreatedBy, CreatedDate.
                     schedule.PaymentDate = postRequestDateTime;
-                    schedule.PaymentAmount = dto.PaymentAmount;
-                    schedule.PrincipalAmount = dto.PrincipalAmount;
-                    schedule.InterestAmount = dto.InterestAmount;
+                    schedule.PaymentAmount = paymentAmount;
+                    schedule.PrincipalAmount = principalAmount;
+                    schedule.InterestAmount = interestAmount;
                     schedule.PaymentMode = paymentMode;
-                    schedule.Comments = dto.Comments ?? string.Empty;
+                    schedule.Comments = (dto.Comments ?? string.Empty).Trim();
                     schedule.CollectedBy = dto.CollectedBy ?? currentUserId;
 
                     // Difference amounts between scheduled (Actual*) and posted amounts.
                     // Null-safe by design (all decimal non-nullable on entity/DTO), and clamped to 0.
-                    decimal differenceAmount = Math.Max(0, schedule.ActualEmiAmount - dto.PaymentAmount);
-                    decimal differencePrincipalAmount = Math.Max(0, schedule.ActualPrincipalAmount - dto.PrincipalAmount);
-                    decimal differenceInterestAmount = Math.Max(0, schedule.ActualInterestAmount - dto.InterestAmount);
+                    decimal differenceAmount = Math.Max(0, schedule.ActualEmiAmount - paymentAmount);
+                    decimal differencePrincipalAmount = Math.Max(0, schedule.ActualPrincipalAmount - principalAmount);
+                    decimal differenceInterestAmount = Math.Max(0, schedule.ActualInterestAmount - interestAmount);
 
                     // Carry-forward to immediate next unpaid installment.
                     if (requestedStatus == "Not Paid")
@@ -449,13 +562,16 @@ namespace MCS.WebApi.Services
             }
         }
 
-        private static string NormalizeRequestedStatus(string? status)
+        private static string NormalizeOrDeriveRequestedStatus(string? status, decimal paymentAmount, decimal scheduledAmount)
         {
             var normalized = (status ?? string.Empty).Trim().ToLowerInvariant();
             if (normalized == "paid") return "Paid";
             if (normalized == "partial" || normalized == "partial paid" || normalized == "partialpaid") return "Partial";
             if (normalized == "not paid" || normalized == "notpaid") return "Not Paid";
-            return "Partial";
+
+            // Derive if not provided / unknown: never silently guess Partial without evidence.
+            if (paymentAmount <= 0) return "Not Paid";
+            return Math.Abs(paymentAmount - scheduledAmount) <= 0.01m ? "Paid" : "Partial";
         }
 
         private DateTime CalculateNextPaymentDate(DateTime currentDate, string collectionTerm)

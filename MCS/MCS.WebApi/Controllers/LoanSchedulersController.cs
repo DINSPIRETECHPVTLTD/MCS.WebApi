@@ -263,17 +263,25 @@ namespace MCS.WebApi.Controllers
                 return Forbid();
             }
 
-            // Enforce branch / org access if branch filter is specified
-            if (branchId.HasValue)
+            // Tenant isolation: always derive scope from authenticated user.
+            // - Branch user: force branch scope to user's BranchId; reject mismatched branchId query.
+            // - Organization user: allow optional branchId, but only within user's OrgId.
+            int? effectiveBranchId = branchId;
+            if (userType == "Branch")
             {
-                if (userType == "Branch")
+                if (!user.BranchId.HasValue)
                 {
-                    if (!user.BranchId.HasValue || user.BranchId.Value != branchId.Value)
-                    {
-                        return Forbid();
-                    }
+                    return Forbid();
                 }
-                else if (userType == "Organization")
+                if (branchId.HasValue && user.BranchId.Value != branchId.Value)
+                {
+                    return Forbid();
+                }
+                effectiveBranchId = user.BranchId.Value;
+            }
+            else if (userType == "Organization")
+            {
+                if (branchId.HasValue)
                 {
                     var branch = await _context.Branches.FindAsync(branchId.Value);
                     if (branch == null || branch.OrgId != user.OrgId)
@@ -282,14 +290,20 @@ namespace MCS.WebApi.Controllers
                     }
                 }
             }
+            else
+            {
+                return Forbid();
+            }
 
             var result = await _loanSchedulerService.GetLoanSchedulersForRecoveryAsync(
                 scheduleDate,
-                branchId,
+                effectiveBranchId,
                 centerId,
                 pocId,
                 pageNumber,
-                pageSize);
+                pageSize,
+                userType,
+                user.OrgId);
 
             Response.Headers["X-Total-Count"] = result.TotalCount.ToString();
             return Ok(result.Items);
@@ -307,10 +321,17 @@ namespace MCS.WebApi.Controllers
             }
 
             var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var userType = User.FindFirst("UserType")?.Value ?? string.Empty;
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+            {
+                return Forbid();
+            }
 
             try
             {
-                await _loanSchedulerService.SaveAsync(items, userId);
+                await _loanSchedulerService.SaveAsync(items, userId, userType, user.OrgId, user.BranchId);
                 return Ok(new { updatedCount = items.Count });
             }
             catch (InvalidOperationException ex)
